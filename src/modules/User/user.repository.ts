@@ -2,7 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
 import { BaseRepository } from 'src/shared/base-repository';
-import { User } from 'src/entities/user.entity';
+import { User } from 'src/modules/User/user.entity';
 
 @Injectable()
 export class UserRepository extends BaseRepository<User> {

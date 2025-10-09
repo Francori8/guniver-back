@@ -6,7 +6,7 @@ import {
   Collection,
   OneToMany,
 } from '@mikro-orm/core';
-import { User } from './user.entity';
+import { User } from '../User/user.entity';
 
 @Entity()
 export class Role {

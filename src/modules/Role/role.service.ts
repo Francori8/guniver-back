@@ -2,15 +2,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { RoleRepository } from './role.repository';
-import { Role } from '../../entities/role.entity';
+import { Role } from './role.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 
 @Injectable()
 export class RoleService {
-  constructor(
-    @InjectRepository(Role)
-    private readonly roleRepository: RoleRepository,
-  ) {}
+  constructor(private readonly roleRepository: RoleRepository) {}
 
   async create(createRoleDto: CreateRoleDto): Promise<Role> {
     const existingRole = await this.roleRepository.findByName(
