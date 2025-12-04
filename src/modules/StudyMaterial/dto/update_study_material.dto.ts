@@ -1,0 +1,7 @@
+export class UpdateStudyMaterialDto {
+  title?: string;
+  description?: string;
+  subjectId?: number;
+  type?: string;
+  resourceUrl?: string;
+}

@@ -8,6 +8,7 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { UserRepository } from './user.repository';
 import { RoleModule } from '../Role/role.module';
+import { ProfileModule } from '../Profile/profile.module';
 
 @Module({
   imports: [RoleModule],

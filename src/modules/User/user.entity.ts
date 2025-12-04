@@ -8,9 +8,10 @@ import {
   Collection,
 } from '@mikro-orm/core';
 import { Role } from '../Role/role.entity';
-import { Profile } from '../Profile/profile.entity';
-import { StudentProfile } from '../Profile/student_profile.entity';
-import { AdminProfile } from '../Profile/admin_profile.entity';
+
+import { StudentProfile } from '../Profile/entity/student_profile.entity';
+import { AdminProfile } from '../Profile/entity/admin_profile.entity';
+import { RoleName } from 'src/shared/Types/roles.enum';
 
 @Entity()
 export class User {
@@ -49,4 +50,8 @@ export class User {
 
   @OneToMany(() => AdminProfile, (profile) => profile.user)
   adminProfiles = new Collection<AdminProfile>(this);
+
+  hasRole(roleName: RoleName[]) {
+    return roleName.some((name) => this.role.name == name);
+  }
 }

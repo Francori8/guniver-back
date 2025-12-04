@@ -1,8 +1,11 @@
 import { Entity, ManyToOne, PrimaryKey, Property, Enum } from '@mikro-orm/core';
-import { University } from '../University/university.entity';
-import { User } from '../User/user.entity';
+import { University } from '../../University/university.entity';
+import { User } from '../../User/user.entity';
 
-@Entity({ abstract: true })
+@Entity({
+  abstract: true,
+  tableName: 'profile',
+})
 export abstract class Profile {
   @PrimaryKey()
   id!: number;
@@ -17,13 +20,12 @@ export abstract class Profile {
   type!: ProfileType;
 
   @Property()
-  createdAt: Date = new Date();
+  createdAt?: Date = new Date();
 
   @Property({ default: true })
   isActive: boolean = true;
 }
 
-// ✅ ENUM para tipos de perfil
 export enum ProfileType {
   STUDENT = 'student',
   ADMIN = 'admin',

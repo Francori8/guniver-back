@@ -14,6 +14,7 @@ export class UniversityService {
     return new UniversityResponseDto({
       id: university.id,
       name: university.name,
+      acronym: university.acronym,
       address: university.address,
       website: university.website,
       phone: university.phone,

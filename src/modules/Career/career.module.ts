@@ -11,6 +11,6 @@ import { UniversityModule } from '../University/university.module';
   imports: [UniversityModule],
   providers: [CareerService, CareerRepository],
   controllers: [CareerController],
-  exports: [CareerService],
+  exports: [CareerRepository],
 })
 export class CareerModule {}
