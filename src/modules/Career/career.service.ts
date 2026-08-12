@@ -91,7 +91,8 @@ export class CareerService {
       career.university = university;
     }
 
-    Object.assign(career, updates);
+    const { universityId, ...rest } = updates;
+    this.careerRepository.assign(career, rest, { ignoreUndefined: true });
     await this.careerRepository.save(career);
     return this.toResponseDto(career);
   }

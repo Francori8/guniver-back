@@ -100,20 +100,25 @@ export class UserService {
     id: number,
     updates: UpdateUserDto,
   ): Promise<UserResponseDto> {
-    const user = await this.userRepository.findByIdWithRole(id);
+    const user = await this.userRepository.findByIdWithProfiles(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    if (updates.roleId) {
-      const role = await this.roleRepository.findById(updates.roleId);
+    const { roleId, password, ...rest } = updates;
+
+    if (roleId) {
+      const role = await this.roleRepository.findById(roleId);
       if (!role) {
-        throw new NotFoundException(`Role with ID ${updates.roleId} not found`);
+        throw new NotFoundException(`Role with ID ${roleId} not found`);
       }
       user.role = role;
     }
 
-    Object.assign(user, updates);
+    this.userRepository.assign(user, rest, { ignoreUndefined: true });
+    if (password) {
+      user.password = await bcrypt.hash(password, 10);
+    }
     await this.userRepository.save(user);
     return this.toResponseDto(user);
   }

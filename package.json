@@ -25,7 +25,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "docker compose -f docker-compose.test.yml up -d --wait && cross-env NODE_ENV=test jest --config ./test/jest-e2e.json --runInBand",
+    "test:e2e:down": "docker compose -f docker-compose.test.yml down"
   },
   "dependencies": {
     "@mikro-orm/core": "^6.5.3",
@@ -70,6 +71,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.2",
+    "cross-env": "^10.1.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

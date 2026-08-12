@@ -31,16 +31,16 @@ export class SubjectService {
   }
 
   async create(createDto: CreateSubjectDto): Promise<SubjectResponseDto> {
-    const { carrersIds, ...subjectData } = createDto;
+    const { careerIds, ...subjectData } = createDto;
 
-    if (!carrersIds || carrersIds.length === 0) {
-      throw new BadRequestException('carrersIds no puede estar vacío');
+    if (!careerIds || careerIds.length === 0) {
+      throw new BadRequestException('careerIds no puede estar vacío');
     }
 
     const subject = this.subjectRepository.create({ ...subjectData } as any);
     await this.subjectRepository.save(subject);
 
-    for (const careerId of carrersIds) {
+    for (const careerId of careerIds) {
       const career = await this.careerRepository.findOne(careerId);
       if (!career) {
         throw new NotFoundException(`Career with ID ${careerId} not found`);
@@ -94,21 +94,22 @@ export class SubjectService {
     if (!subject)
       throw new NotFoundException(`Subject with ID ${id} not found`);
 
-    const { carrersIds, ...rest } = updates;
+    const { careerIds, ...rest } = updates;
 
-    if (carrersIds) {
-      const desiredIds = new Set(carrersIds);
+    if (careerIds) {
+      const desiredIds = new Set(careerIds);
       const currentCareers = subject.careers.getItems();
       const currentIds = new Set(currentCareers.map((c) => c.id));
 
       for (const career of currentCareers) {
         if (!desiredIds.has(career.id)) {
+          await career.subjects.init();
           career.subjects.remove(subject);
           await this.careerRepository.save(career);
         }
       }
 
-      for (const careerId of carrersIds) {
+      for (const careerId of careerIds) {
         if (!currentIds.has(careerId)) {
           const career = await this.careerRepository.findOne(careerId);
           if (!career) {

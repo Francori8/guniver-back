@@ -53,7 +53,9 @@ export class UniversityService {
       throw new NotFoundException(`University with ID ${id} not found`);
     }
 
-    Object.assign(university, updates);
+    this.universityRepository.assign(university, updates, {
+      ignoreUndefined: true,
+    });
     await this.universityRepository.save(university);
     return this.toResponseDto(university);
   }

@@ -4,6 +4,5 @@ export class UpdateSubjectDto {
   code?: string;
   credits?: number;
   hoursPerWeek?: number;
-  // Mismo nombre (con el typo) que CreateSubjectDto, para mantener la API consistente.
-  carrersIds?: number[];
+  careerIds?: number[];
 }

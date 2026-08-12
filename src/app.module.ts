@@ -20,7 +20,9 @@ import { CareerRequestModule } from './modules/CareerRequest/career_request.modu
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
+    }),
     MikroOrmModule.forRoot({ ...mikroOrmConfig, autoLoadEntities: true }),
     RoleModule,
     UserModule,

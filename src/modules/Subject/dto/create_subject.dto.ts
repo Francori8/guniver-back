@@ -4,5 +4,5 @@ export class CreateSubjectDto {
   code?: string;
   credits?: number;
   hoursPerWeek?: number;
-  carrersIds: number[];
+  careerIds: number[];
 }
