@@ -13,7 +13,7 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
 
   async findBySubject(subjectId: number): Promise<StudyMaterial[]> {
     return this.find(
-      { subject: subjectId },
+      { subject: subjectId, deletedAt: null },
       { populate: ['subject', 'uploadedBy'] },
     );
   }
@@ -23,30 +23,40 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
     type: MaterialType,
   ): Promise<StudyMaterial[]> {
     return this.find(
-      { subject: subjectId, type },
+      { subject: subjectId, type, deletedAt: null },
       { populate: ['subject', 'uploadedBy'] },
     );
   }
 
   async findApprovedBySubject(subjectId: number): Promise<StudyMaterial[]> {
     return this.find(
-      { subject: subjectId },
+      { subject: subjectId, deletedAt: null },
       { populate: ['subject', 'uploadedBy'] },
     );
   }
 
   async findByUploader(userId: number): Promise<StudyMaterial[]> {
-    return this.find({ uploadedBy: userId }, { populate: ['subject'] });
+    return this.find(
+      { uploadedBy: userId, deletedAt: null },
+      { populate: ['subject'] },
+    );
   }
 
   async findPopular(limit: number = 10): Promise<StudyMaterial[]> {
     return this.find(
-      {},
+      { deletedAt: null },
       {
         populate: ['subject', 'uploadedBy'],
         orderBy: { viewCount: 'DESC' },
         limit,
       },
+    );
+  }
+
+  async findTrash(): Promise<StudyMaterial[]> {
+    return this.find(
+      { deletedAt: { $ne: null } },
+      { populate: ['subject', 'uploadedBy'], orderBy: { deletedAt: 'desc' } },
     );
   }
 }

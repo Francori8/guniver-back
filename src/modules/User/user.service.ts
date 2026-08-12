@@ -1,5 +1,9 @@
 // src/user/user.Repository.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -115,10 +119,18 @@ export class UserService {
   }
 
   async deleteUser(id: number): Promise<void> {
-    const user = await this.userRepository.findOne(id);
+    const user = await this.userRepository.findByIdWithProfiles(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-    await this.userRepository.removeAndFlush(user);
+
+    for (const profile of user.studentProfiles.getItems()) {
+      this.userRepository.em.remove(profile);
+    }
+    for (const profile of user.adminProfiles.getItems()) {
+      this.userRepository.em.remove(profile);
+    }
+    this.userRepository.em.remove(user);
+    await this.userRepository.em.flush();
   }
 }

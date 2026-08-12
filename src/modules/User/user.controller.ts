@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,11 +21,11 @@ import { RolesGuard } from 'src/shared/guards/role.guard';
 import { Roles } from 'src/shared/Decorators/roles.decorator';
 import { RoleName } from 'src/shared/Types/roles.enum';
 
+@ApiAuth()
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Crear un nuevo usuario',
     description:
@@ -58,7 +59,6 @@ export class UserController {
     return this.userService.createUser(createUserDto);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener todos los usuarios',
     description:
@@ -78,7 +78,6 @@ export class UserController {
     return this.userService.findAll();
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener un usuario por ID',
     description: 'Busca y retorna un usuario específico basado en su ID único',
@@ -107,7 +106,6 @@ export class UserController {
     return this.userService.findOne(+id);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Hashear contraseñas existentes',
     description:
@@ -129,7 +127,6 @@ export class UserController {
     return this.userService.hashExistingPasswords();
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Actualizar usuario',
     description: 'Actualiza la información de un usuario existente',
@@ -170,7 +167,6 @@ export class UserController {
     return this.userService.updateUser(+id, updates);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Eliminar usuario',
     description: 'Elimina un usuario del sistema de forma permanente',

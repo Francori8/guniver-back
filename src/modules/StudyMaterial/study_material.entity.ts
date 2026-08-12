@@ -33,6 +33,15 @@ export class StudyMaterial {
   @Property()
   resourceUrl!: string;
 
+  @Property({ nullable: true })
+  cloudinaryPublicId?: string;
+
+  @Property({ nullable: true })
+  cloudinaryResourceType?: string;
+
+  @Property({ nullable: true })
+  deletedAt?: Date;
+
   @Property({ default: 0 })
   viewCount: number = 0;
 

@@ -3,9 +3,11 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
+  Request,
   UseGuards,
   Query,
 } from '@nestjs/common';
@@ -43,8 +45,9 @@ export class StudyMaterialController {
   @Post()
   async create(
     @Body() createDto: CreateStudyMaterialDto,
+    @Request() req,
   ): Promise<StudyMaterialResponseDto> {
-    return this.studyMaterialService.create(createDto);
+    return this.studyMaterialService.create(createDto, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -99,6 +102,26 @@ export class StudyMaterialController {
   }
 
   @ApiEndpoint({
+    summary: 'Ver la papelera de materiales',
+    description: 'Lista los materiales borrados (soft delete), pendientes de restaurar o borrar en serio.',
+    secured: true,
+    responses: [
+      {
+        status: 200,
+        description: 'Materiales en la papelera',
+        type: StudyMaterialResponseDto,
+        isArray: true,
+      },
+    ],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Get('trash')
+  async findTrash(): Promise<StudyMaterialResponseDto[]> {
+    return this.studyMaterialService.findTrash();
+  }
+
+  @ApiEndpoint({
     summary: 'Obtener material por id',
     params: [{ name: 'id', description: 'ID del material', required: true }],
     secured: true,
@@ -140,10 +163,11 @@ export class StudyMaterialController {
   }
 
   @ApiEndpoint({
-    summary: 'Eliminar material',
+    summary: 'Enviar material a la papelera',
+    description: 'Soft delete: deja de verse en la app pero se puede restaurar.',
     params: [{ name: 'id', description: 'ID del material', required: true }],
     secured: true,
-    responses: [{ status: 200, description: 'Material eliminado' }],
+    responses: [{ status: 200, description: 'Material enviado a la papelera' }],
   })
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
@@ -151,5 +175,39 @@ export class StudyMaterialController {
   async delete(@Param('id') id: string): Promise<{ message: string }> {
     await this.studyMaterialService.delete(+id);
     return { message: 'StudyMaterial deleted successfully' };
+  }
+
+  @ApiEndpoint({
+    summary: 'Restaurar material de la papelera',
+    params: [{ name: 'id', description: 'ID del material', required: true }],
+    secured: true,
+    responses: [
+      {
+        status: 200,
+        description: 'Material restaurado',
+        type: StudyMaterialResponseDto,
+      },
+    ],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Patch(':id/restore')
+  async restore(@Param('id') id: string): Promise<StudyMaterialResponseDto> {
+    return this.studyMaterialService.restore(+id);
+  }
+
+  @ApiEndpoint({
+    summary: 'Eliminar material permanentemente',
+    description: 'Borra el registro y, si tiene archivo propio, también lo borra de Cloudinary.',
+    params: [{ name: 'id', description: 'ID del material', required: true }],
+    secured: true,
+    responses: [{ status: 200, description: 'Material eliminado permanentemente' }],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Delete(':id/permanent')
+  async permanentDelete(@Param('id') id: string): Promise<{ message: string }> {
+    await this.studyMaterialService.permanentDelete(+id);
+    return { message: 'StudyMaterial permanently deleted' };
   }
 }

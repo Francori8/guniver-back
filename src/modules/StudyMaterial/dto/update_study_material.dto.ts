@@ -4,4 +4,6 @@ export class UpdateStudyMaterialDto {
   subjectId?: number;
   type?: string;
   resourceUrl?: string;
+  cloudinaryPublicId?: string;
+  cloudinaryResourceType?: string;
 }

@@ -5,6 +5,9 @@ export class StudyMaterialResponseDto {
   subject?: { id: number; name: string };
   type?: string;
   resourceUrl?: string;
+  cloudinaryPublicId?: string;
+  cloudinaryResourceType?: string;
+  deletedAt?: Date;
   viewCount?: number;
   downloadCount?: number;
   uploadedBy?: { id: number; email?: string };

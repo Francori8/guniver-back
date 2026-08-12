@@ -8,6 +8,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ProfileType } from '../entity/profile.entity';
 import { PermissionLevel } from '../entity/admin_profile.entity';
 
@@ -28,6 +29,7 @@ export class CreateProfileDto {
   careerId?: number;
 
   @ValidateIf((obj) => obj.type === ProfileType.STUDENT)
+  @Type(() => Date)
   @IsDate()
   enrollmentDate?: Date;
 

@@ -14,10 +14,15 @@ import { LocalAuthGuard } from 'src/shared/guards/local_auth.guard';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/shared/guards/jwt.guard';
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
+import { ActivateAccountDto } from './dto/activate_account.dto';
+import { UserService } from '../User/user.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private userService: UserService,
+  ) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -43,6 +48,30 @@ export class AuthController {
     };
   }
 
+  @Post('activate-account')
+  @ApiOperation({ summary: 'Activar cuenta y definir contraseña con el token de invitación' })
+  @ApiBody({ type: ActivateAccountDto })
+  async activateAccount(
+    @Body() dto: ActivateAccountDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.activateAccount(dto.token, dto.password);
+
+    res.cookie('guniver_token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return {
+      access_token: result.access_token,
+      user: result.user,
+      message: 'Cuenta activada exitosamente',
+    };
+  }
+
   @Post('logout')
   @ApiOperation({ summary: 'Cerrar sesión' })
   async logout(@Res({ passthrough: true }) res: Response) {
@@ -53,10 +82,11 @@ export class AuthController {
 
   @Get('me')
   @ApiAuth()
-  getCurrentUser(@Request() req) {
+  async getCurrentUser(@Request() req) {
+    const user = await this.userService.findOne(req.user.userId);
     return {
       message: 'Usuario actual',
-      user: req.user,
+      user,
     };
   }
 }

@@ -25,8 +25,22 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
+    // Verificar que el usuario esté presente (debería haber sido cargado por JwtAuthGuard)
+    if (!user) {
+      throw new ForbiddenException(
+        'No se pudo verificar la identidad del usuario',
+      );
+    }
+
     // Verificar que el usuario tenga al menos uno de los roles requeridos
-    const hasRole = requiredRoles.some((role) => user.role?.name === role);
+    const hasRole = requiredRoles.some((role) => {
+      // Si el rol en el user es un objeto, chequeamos su nombre
+      if (typeof user.role === 'object' && user.role !== null) {
+        return user.role.name === role;
+      }
+      // Si el rol en el user es un string (viene directo del JWT a veces), chequeamos directamente
+      return user.role === role;
+    });
 
     if (!hasRole) {
       throw new ForbiddenException(

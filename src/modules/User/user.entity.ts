@@ -39,6 +39,12 @@ export class User {
   @Property()
   isActive: boolean = true;
 
+  @Property({ nullable: true })
+  inviteToken?: string;
+
+  @Property({ nullable: true })
+  inviteTokenExpiresAt?: Date;
+
   @Property()
   createdAt?: Date = new Date();
 

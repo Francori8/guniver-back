@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SubjectRepository } from './subject.repository';
 import { CareerRepository } from '../Career/career.repository';
 import { Subject } from './subject.entity';
+import { StudyMaterial } from '../StudyMaterial/study_material.entity';
 import { SubjectResponseDto } from './dto/subject.response.dto';
 import { CreateSubjectDto } from './dto/create_subject.dto';
 import { UpdateSubjectDto } from './dto/update_subject.dto';
@@ -30,12 +31,28 @@ export class SubjectService {
   }
 
   async create(createDto: CreateSubjectDto): Promise<SubjectResponseDto> {
-    const subject = this.subjectRepository.create({
-      ...createDto,
-    } as any);
+    const { carrersIds, ...subjectData } = createDto;
 
+    if (!carrersIds || carrersIds.length === 0) {
+      throw new BadRequestException('carrersIds no puede estar vacío');
+    }
+
+    const subject = this.subjectRepository.create({ ...subjectData } as any);
     await this.subjectRepository.save(subject);
-    return this.toResponseDto(subject);
+
+    for (const careerId of carrersIds) {
+      const career = await this.careerRepository.findOne(careerId);
+      if (!career) {
+        throw new NotFoundException(`Career with ID ${careerId} not found`);
+      }
+      // Career es el dueño de la relación M2M, hay que agregar desde ese lado
+      // para que MikroORM persista la tabla intermedia correctamente.
+      career.subjects.add(subject);
+      await this.careerRepository.save(career);
+    }
+
+    const created = await this.subjectRepository.findByIdWithRelations(subject.id);
+    return this.toResponseDto(created!);
   }
 
   async findAll(filters?: {
@@ -77,15 +94,53 @@ export class SubjectService {
     if (!subject)
       throw new NotFoundException(`Subject with ID ${id} not found`);
 
-    this.subjectRepository.assign(subject, updates, { ignoreUndefined: true });
+    const { carrersIds, ...rest } = updates;
+
+    if (carrersIds) {
+      const desiredIds = new Set(carrersIds);
+      const currentCareers = subject.careers.getItems();
+      const currentIds = new Set(currentCareers.map((c) => c.id));
+
+      for (const career of currentCareers) {
+        if (!desiredIds.has(career.id)) {
+          career.subjects.remove(subject);
+          await this.careerRepository.save(career);
+        }
+      }
+
+      for (const careerId of carrersIds) {
+        if (!currentIds.has(careerId)) {
+          const career = await this.careerRepository.findOne(careerId);
+          if (!career) {
+            throw new NotFoundException(`Career with ID ${careerId} not found`);
+          }
+          career.subjects.add(subject);
+          await this.careerRepository.save(career);
+        }
+      }
+    }
+
+    this.subjectRepository.assign(subject, rest, { ignoreUndefined: true });
     await this.subjectRepository.save(subject);
-    return this.toResponseDto(subject);
+
+    const updated = await this.subjectRepository.findByIdWithRelations(subject.id);
+    return this.toResponseDto(updated!);
   }
 
   async delete(id: number): Promise<void> {
     const subject = await this.subjectRepository.findOne(id);
     if (!subject)
       throw new NotFoundException(`Subject with ID ${id} not found`);
+
+    const materialCount = await this.subjectRepository.em.count(StudyMaterial, {
+      subject: id,
+    });
+    if (materialCount > 0) {
+      throw new BadRequestException(
+        `No se puede eliminar: esta materia todavía tiene ${materialCount} material(es) asociado(s) (incluida la papelera). Movelos o eliminalos primero desde Materiales.`,
+      );
+    }
+
     await this.subjectRepository.removeAndFlush(subject);
   }
 }

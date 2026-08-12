@@ -12,7 +12,7 @@ async function bootstrap() {
 
   // Configurar CORS para permitir requests desde el frontend
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:4321', // URL del frontend Astro
+    origin: ['http://localhost:3001', 'http://192.168.1.61:3001'], // URL del frontend Astro y Next.js
     credentials: true, // Permite enviar cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],

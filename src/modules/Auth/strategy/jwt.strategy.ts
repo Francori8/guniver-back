@@ -12,7 +12,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromExtractors([
         (request: Request) => {
           // Intentar obtener de cookies primero
-          return request?.cookies?.guniver_token;
+          if (request?.cookies?.guniver_token) {
+            return request.cookies.guniver_token;
+          }
+          return null;
         },
         // Fallback al header Authorization (para compatibilidad con Swagger)
         ExtractJwt.fromAuthHeaderAsBearerToken(),

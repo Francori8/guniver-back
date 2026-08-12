@@ -45,4 +45,8 @@ export class UserRepository extends BaseRepository<User> {
   async findByIdWithRole(id: number): Promise<User | null> {
     return this.findOne({ id }, { populate: ['role'] });
   }
+
+  async findByInviteToken(inviteToken: string): Promise<User | null> {
+    return this.findOne({ inviteToken }, { populate: ['role'] });
+  }
 }

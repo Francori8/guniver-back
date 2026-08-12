@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../User/user.service';
@@ -51,5 +51,23 @@ export class AuthService {
         role: user.role,
       },
     };
+  }
+
+  async activateAccount(token: string, password: string) {
+    const user = await this.userService.findByInviteToken(token);
+    if (!user) {
+      throw new BadRequestException('El link de activación no es válido');
+    }
+    if (!user.inviteTokenExpiresAt || user.inviteTokenExpiresAt < new Date()) {
+      throw new BadRequestException('El link de activación venció');
+    }
+
+    user.password = await bcrypt.hash(password, 10);
+    user.isActive = true;
+    user.inviteToken = undefined;
+    user.inviteTokenExpiresAt = undefined;
+    await this.userService.save(user);
+
+    return this.login(user);
   }
 }
