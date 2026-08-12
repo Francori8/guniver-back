@@ -13,12 +13,40 @@ export class UserRepository extends BaseRepository<User> {
   async findByEmail(email: string): Promise<User | null> {
     return this.findOne({ email }, { populate: ['role'] });
   }
+  async findByIdWithProfiles(id: number): Promise<User | null> {
+    return this.findOne(
+      { id },
+      {
+        populate: [
+          'role',
+          'studentProfiles',
+          'adminProfiles',
+          'studentProfiles.university',
+          'studentProfiles.career',
+          'adminProfiles.university',
+        ],
+      },
+    );
+  }
 
   async findAllUsers(): Promise<User[]> {
-    return this.findAll({ populate: ['role'] });
+    return this.findAll({
+      populate: [
+        'role',
+        'studentProfiles',
+        'adminProfiles',
+        'studentProfiles.university',
+        'studentProfiles.career',
+        'adminProfiles.university',
+      ],
+    });
   }
 
   async findByIdWithRole(id: number): Promise<User | null> {
     return this.findOne({ id }, { populate: ['role'] });
+  }
+
+  async findByInviteToken(inviteToken: string): Promise<User | null> {
+    return this.findOne({ inviteToken }, { populate: ['role'] });
   }
 }

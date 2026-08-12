@@ -20,11 +20,11 @@ import { CreateUniversityDto } from './dtos/create_university.dto';
 import { UniversityResponseDto } from './dtos/university.response.dto';
 import { UpdateUniversityDto } from './dtos/update_university.dto';
 
+@ApiAuth()
 @Controller('universities')
 export class UniversityController {
   constructor(private readonly universityService: UniversityService) {}
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Crear una nueva universidad',
     description: 'Crea una nueva universidad en el sistema',
@@ -55,7 +55,6 @@ export class UniversityController {
     return this.universityService.create(createUniversityDto);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener todas las universidades',
     description: 'Retorna una lista de todas las universidades registradas',
@@ -74,7 +73,6 @@ export class UniversityController {
     return this.universityService.findAll();
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener una universidad por ID',
     description:
@@ -104,7 +102,6 @@ export class UniversityController {
     return this.universityService.findOne(+id);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Actualizar universidad',
     description: 'Actualiza la información de una universidad existente',
@@ -147,7 +144,6 @@ export class UniversityController {
     return this.universityService.update(+id, updates);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Eliminar universidad',
     description: 'Elimina una universidad del sistema de forma permanente',

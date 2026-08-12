@@ -1,4 +1,3 @@
-// src/entities/University/university.entity.ts
 import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
 
 @Entity()

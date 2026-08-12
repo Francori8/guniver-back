@@ -20,11 +20,11 @@ import { CreateCareerDto } from './dto/create_career.dto';
 import { CareerResponseDto } from './dto/career.response.dto';
 import { UpdateCareerDto } from './dto/update_career.dto';
 
+@ApiAuth()
 @Controller('careers')
 export class CareerController {
   constructor(private readonly careerService: CareerService) {}
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Crear una nueva carrera',
     description: 'Crea una nueva carrera en una universidad específica',
@@ -59,7 +59,6 @@ export class CareerController {
     return this.careerService.create(createCareerDto);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener todas las carreras',
     description: 'Retorna una lista de todas las carreras registradas',
@@ -78,7 +77,6 @@ export class CareerController {
     return this.careerService.findAll();
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener una carrera por ID',
     description: 'Busca y retorna una carrera específica basada en su ID único',
@@ -107,7 +105,6 @@ export class CareerController {
     return this.careerService.findOne(+id);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Obtener carreras por universidad',
     description: 'Retorna todas las carreras de una universidad específica',
@@ -135,7 +132,6 @@ export class CareerController {
     return this.careerService.findByUniversity(+universityId);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Actualizar carrera',
     description: 'Actualiza la información de una carrera existente',
@@ -178,7 +174,6 @@ export class CareerController {
     return this.careerService.update(+id, updates);
   }
 
-  @ApiAuth()
   @ApiEndpoint({
     summary: 'Eliminar carrera',
     description: 'Elimina una carrera del sistema de forma permanente',
