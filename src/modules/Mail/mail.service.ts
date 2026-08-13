@@ -84,4 +84,22 @@ export class MailService {
 
     await this.send(email, subject, html);
   }
+
+  async sendPasswordResetEmail(
+    email: string,
+    firstName: string,
+    resetUrl: string,
+  ): Promise<void> {
+    const { subject, html } = new EmailBuilder()
+      .subject('Restablecé tu contraseña en Guniverse')
+      .heading(`Hola, ${firstName}`)
+      .paragraph(
+        'Pediste restablecer tu contraseña. Hacé clic en el siguiente botón para elegir una nueva.',
+      )
+      .button('Restablecer contraseña', resetUrl)
+      .paragraph('Si vos no pediste esto, podés ignorar este mail. Este link vence en 1 hora.')
+      .build();
+
+    await this.send(email, subject, html);
+  }
 }

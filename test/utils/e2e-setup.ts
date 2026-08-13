@@ -90,3 +90,11 @@ export async function seedCareer(
   await em.persistAndFlush(career);
   return career;
 }
+
+export async function findUserByEmail(
+  app: INestApplication,
+  email: string,
+): Promise<User | null> {
+  const em = forkEm(app);
+  return em.findOne(User, { email });
+}

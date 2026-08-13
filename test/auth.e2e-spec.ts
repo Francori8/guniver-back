@@ -7,6 +7,7 @@ import {
   closeTestApp,
   seedRole,
   seedUser,
+  findUserByEmail,
 } from './utils/e2e-setup';
 
 describe('Auth (e2e)', () => {
@@ -91,5 +92,58 @@ describe('Auth (e2e)', () => {
         c.startsWith('guniver_token=;'),
       ),
     ).toBe(true);
+  });
+
+  it('POST /auth/forgot-password always responds 200, even for an unknown email', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({ email: 'no-existe@guniver.test' })
+      .expect(201);
+  });
+
+  it('POST /auth/forgot-password sets a reset token on the user', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({ email: 'admin@guniver.test' })
+      .expect(201);
+
+    const user = await findUserByEmail(app, 'admin@guniver.test');
+    expect(user?.inviteToken).toBeDefined();
+    expect(user?.inviteTokenExpiresAt).toBeDefined();
+  });
+
+  it('POST /auth/reset-password rejects an invalid token', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({ token: 'not-a-real-token', password: 'NuevaPass123' })
+      .expect(400);
+  });
+
+  it('POST /auth/reset-password sets a new password and logs the user in', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .send({ email: 'admin@guniver.test' })
+      .expect(201);
+
+    const user = await findUserByEmail(app, 'admin@guniver.test');
+    const token = user!.inviteToken!;
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({ token, password: 'NuevaPass123' })
+      .expect(201);
+
+    expect(response.body.access_token).toBeDefined();
+    expect(response.body.user.email).toBe('admin@guniver.test');
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@guniver.test', password: 'NuevaPass123' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/auth/reset-password')
+      .send({ token, password: 'OtraPass123' })
+      .expect(400);
   });
 });

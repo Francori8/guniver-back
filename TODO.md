@@ -2,6 +2,22 @@
 
 Roadmap de trabajo pendiente. Prioridad de arriba hacia abajo dentro de cada sección.
 
+## 0. Restablecer contraseña — ✅ Hecho
+
+Implementado reutilizando el mecanismo de `inviteToken`/`inviteTokenExpiresAt`
+que ya existía para activar cuenta:
+
+- ✅ `POST /auth/forgot-password` — no revela si el email existe (siempre 200/201).
+- ✅ `POST /auth/reset-password` — valida token + expiración (1h), invalida el
+  token tras usarlo (no se puede reusar).
+- ✅ `MailService.sendPasswordResetEmail`.
+- ✅ Frontend: `/olvide-password` y `/reset-password`, link en `/login`.
+- ✅ 4 tests e2e nuevos en `test/auth.e2e-spec.ts` (13 total en el archivo).
+
+Pendiente, no bloqueante:
+- [ ] Rate limiting básico en `forgot-password` (evitar que alguien spamee mails
+      de reset a una cuenta ajena) — aunque sea simple, sin librería dedicada.
+
 ## 1. Estudiantes pueden subir material con categoría
 
 Hoy `POST /uploads` y `POST /study-materials` son exclusivos de `RoleName.ADMIN`
@@ -62,6 +78,16 @@ Repasar qué tan conectado está `University` al resto del dominio — hoy parec
 ## 4. Otras oportunidades de mejora (relevadas en esta sesión)
 
 ### Riesgo medio
+- [ ] **`MaterialType` es un enum de TypeScript hardcodeado** (`study_material.entity.ts`),
+      no una tabla editable. Agregar/renombrar una categoría hoy requiere tocar
+      código + migración + redeploy, no algo que un admin pueda hacer desde la UI.
+      Con 429 materiales ya cargados sobre las 7 categorías actuales, no hay
+      presión concreta para migrar a tabla — pero si en algún momento se necesita
+      que un admin cree categorías nuevas sin deploy (o categorías específicas
+      por carrera), ahí sí vale la pena migrar a una entidad `MaterialCategory`
+      con `ManyToOne` desde `StudyMaterial` (mismo patrón que `Career`/`Subject`),
+      con su propio CRUD admin y una migración de datos para los 429 registros
+      existentes.
 - [ ] **Sin tests e2e de StudyMaterial/Uploads/Profile.** Los 8 módulos con más
       tests (Auth, AccessRequest, CareerRequest, Role, User, University, Career,
       Subject — 51 tests total) están cubiertos; StudyMaterial (con el nuevo campo
@@ -93,6 +119,40 @@ Repasar qué tan conectado está `University` al resto del dominio — hoy parec
 - [ ] `.env.example` del frontend no existe — solo el del backend. Sumarlo para
       documentar `NEXT_PUBLIC_API_URL` y bajar la fricción de onboarding.
 
+## Fase 2 (después de todo lo anterior)
+
+Trabajo más grande, a encarar recién cuando los puntos 0–4 de arriba estén
+resueltos. No son mejoras chicas — cada uno es una feature nueva que merece su
+propia sesión de diseño.
+
+### Vista de estado de carrera (árbol de correlativas)
+
+Que un estudiante pueda ver su avance en la carrera como un árbol/mapa visual:
+qué materias aprobó, cuáles tiene habilitadas para cursar, y cuáles le faltan
+por correlativas pendientes. Hoy el dominio no tiene ningún concepto de
+"correlatividad" ni de "materia aprobada por un alumno" — es una feature nueva
+de punta a punta, no una extensión de algo existente:
+
+- [ ] Modelar correlativas: relación `Subject` → `Subject[]` (self-referencing
+      M2M, "requiere aprobar X para cursar Y") — no existe hoy en `subject.entity.ts`.
+- [ ] Modelar el estado de cursada del estudiante: falta una entidad tipo
+      `SubjectProgress` o similar (`student`, `subject`, `status: aprobada |
+      cursando | pendiente | habilitada`) — hoy `StudentProfile` solo guarda
+      la carrera/universidad, no el detalle materia por materia.
+- [ ] Decidir cómo se carga ese estado: ¿autodeclarado por el estudiante,
+      cargado por un admin, o importado de un sistema académico externo?
+      (afecta mucho el diseño — no es lo mismo confiar en el usuario que
+      requerir aprobación).
+- [ ] Backend: endpoints para consultar el árbol de una carrera + el progreso
+      de un estudiante particular, y para que el estudiante marque una materia
+      como aprobada (con o sin validación de correlativas cumplidas).
+- [ ] Frontend: componente de árbol/grafo visual (evaluar librería — algo tipo
+      React Flow para nodos conectados, o un layout más simple de columnas por
+      "nivel" si las correlativas no forman ciclos complejos).
+- [ ] Admin: carga masiva de correlativas por carrera (probablemente vía CSV o
+      un formulario dedicado, dado el volumen — una carrera puede tener 30+
+      materias con dependencias entre sí).
+
 ## Hecho (para referencia, no repetir)
 
 - ✅ Tests e2e con Postgres real en Docker para Auth/AccessRequest/CareerRequest/
@@ -108,16 +168,13 @@ Repasar qué tan conectado está `University` al resto del dominio — hoy parec
   cada materia/tipo.
 - ✅ Navegación mobile (bottom nav) — antes el sidebar desaparecía sin reemplazo
   por debajo de `md` y dejaba el dashboard/admin sin forma de navegar.
-- 🚧 **Migraciones automáticas en cada deploy de Railway — en progreso, no
-  resuelto todavía.** Configurado Build Command explícito (`pnpm install &&
-  pnpm build`) + Pre-Deploy Command (`pnpm migration:up`) + Start Command simple
-  (`pnpm start:prod`) en Settings → Deploy. El build log muestra `nest build`
-  corriendo sin error, pero el runtime crashea en loop con
-  `Cannot find module '/app/dist/main'`. Se descartó que sea el Pre-Deploy
-  Command (falla igual sin él). Build logs muestran todo `cached` en corridas
-  sucesivas — sospecha: caché de Railpack corrupto de intentos previos con el
-  Start Command compuesto (`start:prod:migrate`, `&&` en un solo comando).
-  Próximo paso: forzar un build 100% sin caché (commit con cambio real, o
-  buscar un toggle de "no cache" en Railway) y confirmar si el crash persiste.
-  Si persiste, revisar memoria del plan (free tier) por si es OOM en el arranque,
-  no un problema de build.
+- ✅ Migraciones automáticas en cada deploy de Railway, vía **Pre-Deploy Command**
+  (`pnpm migration:up`) en Settings → Deploy. **Importante:** dejar **Build
+  Command y Start Command vacíos** (autodetección de Railpack) — poner un Start
+  Command explícito ahí (probado con `pnpm start:prod` y con el comando
+  compuesto `start:prod:migrate`) hacía que Railpack no reconociera que debía
+  correr `nest build` antes, y el runtime crasheaba en loop con
+  `Cannot find module '/app/dist/main'` aunque el build log mostrara `nest build`
+  completándose sin error. Se descartó que fuera código (build/start funcionan
+  igual en local) y que fuera el Pre-Deploy en sí (falla igual sin él). Solución
+  final: Build/Start Command en blanco + solo Pre-Deploy Command con la migración.

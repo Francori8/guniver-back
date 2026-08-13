@@ -15,6 +15,8 @@ import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from 'src/shared/guards/jwt.guard';
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ActivateAccountDto } from './dto/activate_account.dto';
+import { ForgotPasswordDto } from './dto/forgot_password.dto';
+import { ResetPasswordDto } from './dto/reset_password.dto';
 import { UserService } from '../User/user.service';
 
 @Controller('auth')
@@ -69,6 +71,42 @@ export class AuthController {
       access_token: result.access_token,
       user: result.user,
       message: 'Cuenta activada exitosamente',
+    };
+  }
+
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Pedir restablecimiento de contraseña',
+    description:
+      'Si el email existe, envía un mail con un link para elegir una nueva contraseña. Siempre responde éxito (no revela si el email existe).',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email);
+    return { message: 'Si el email existe, vas a recibir un mail con instrucciones.' };
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Restablecer contraseña con el token recibido por mail' })
+  @ApiBody({ type: ResetPasswordDto })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.resetPassword(dto.token, dto.password);
+
+    res.cookie('guniver_token', result.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return {
+      access_token: result.access_token,
+      user: result.user,
+      message: 'Contraseña restablecida exitosamente',
     };
   }
 
