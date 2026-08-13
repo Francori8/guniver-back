@@ -10,7 +10,12 @@ const mikroOrmConfig: Options = {
     ? {
         clientUrl: process.env.DATABASE_URL,
         driverOptions: {
-          connection: { ssl: process.env.DB_SSL !== 'false' },
+          connection: {
+            ssl:
+              process.env.DB_SSL === 'false'
+                ? false
+                : { rejectUnauthorized: false }, // Postgres interno de Railway usa cert autofirmado
+          },
         },
       }
     : {
