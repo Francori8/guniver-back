@@ -139,6 +139,32 @@ export class StudyMaterialController {
   }
 
   @ApiEndpoint({
+    summary: 'Registrar una visualización del material',
+    description: 'Incrementa viewCount. Se llama al abrir/previsualizar el material.',
+    params: [{ name: 'id', description: 'ID del material', required: true }],
+    secured: true,
+    responses: [{ status: 200, description: 'Visualización registrada' }],
+  })
+  @Patch(':id/view')
+  async registerView(@Param('id') id: string): Promise<{ message: string }> {
+    await this.studyMaterialService.registerView(+id);
+    return { message: 'Visualización registrada' };
+  }
+
+  @ApiEndpoint({
+    summary: 'Registrar una descarga del material',
+    description: 'Incrementa downloadCount. Se llama al hacer click en Descargar.',
+    params: [{ name: 'id', description: 'ID del material', required: true }],
+    secured: true,
+    responses: [{ status: 200, description: 'Descarga registrada' }],
+  })
+  @Patch(':id/download')
+  async registerDownload(@Param('id') id: string): Promise<{ message: string }> {
+    await this.studyMaterialService.registerDownload(+id);
+    return { message: 'Descarga registrada' };
+  }
+
+  @ApiEndpoint({
     summary: 'Actualizar material',
     params: [{ name: 'id', description: 'ID del material', required: true }],
     body: { type: UpdateStudyMaterialDto },

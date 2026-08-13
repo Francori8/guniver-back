@@ -145,7 +145,8 @@ export class StudyMaterialService {
     const oldPublicId = m.cloudinaryPublicId;
     const oldResourceType = m.cloudinaryResourceType;
 
-    Object.assign(m, updates);
+    const { subjectId, ...rest } = updates;
+    this.studyMaterialRepository.assign(m, rest as any, { ignoreUndefined: true });
     await this.studyMaterialRepository.save(m);
 
     if (replacingFile && oldPublicId && oldResourceType) {
@@ -153,6 +154,22 @@ export class StudyMaterialService {
     }
 
     return this.toResponseDto(m);
+  }
+
+  async registerView(id: number): Promise<void> {
+    const m = await this.studyMaterialRepository.findOne(id);
+    if (!m)
+      throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
+    m.viewCount += 1;
+    await this.studyMaterialRepository.save(m);
+  }
+
+  async registerDownload(id: number): Promise<void> {
+    const m = await this.studyMaterialRepository.findOne(id);
+    if (!m)
+      throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
+    m.downloadCount += 1;
+    await this.studyMaterialRepository.save(m);
   }
 
   async delete(id: number): Promise<void> {
