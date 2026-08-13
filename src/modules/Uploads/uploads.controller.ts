@@ -32,9 +32,6 @@ export class UploadsController {
       { status: 400, description: 'No se envió ningún archivo' },
     ],
   })
-  // TODO: contemplar la subida de archivos .md (apuntes en markdown) como tipo de material
-  // soportado end-to-end: validar la extensión acá, y decidir cómo se van a visualizar/renderizar
-  // en el frontend (hoy todo lo que sube Cloudinary se trata como link genérico).
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
