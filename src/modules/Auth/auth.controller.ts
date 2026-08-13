@@ -35,7 +35,7 @@ export class AuthController {
     res.cookie('guniver_token', result.access_token, {
       httpOnly: true, // No accesible desde JavaScript
       secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-      sameSite: 'lax', // Protección CSRF
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' necesario: back y front en dominios distintos
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
       path: '/', // Disponible en toda la app
     });
@@ -60,7 +60,7 @@ export class AuthController {
     res.cookie('guniver_token', result.access_token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
@@ -75,8 +75,13 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({ summary: 'Cerrar sesión' })
   async logout(@Res({ passthrough: true }) res: Response) {
-    // Eliminar la cookie
-    res.clearCookie('guniver_token', { path: '/' });
+    // Eliminar la cookie (mismos atributos que al setearla, si no el navegador la ignora)
+    res.clearCookie('guniver_token', {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
     return { message: 'Logout exitoso' };
   }
 

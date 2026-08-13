@@ -11,8 +11,13 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // Configurar CORS para permitir requests desde el frontend
+  const allowedOrigins = [
+    'http://localhost:3001',
+    'http://192.168.1.61:3001',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ];
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://192.168.1.61:3001'], // URL del frontend Astro y Next.js
+    origin: allowedOrigins,
     credentials: true, // Permite enviar cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
