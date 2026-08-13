@@ -8,6 +8,7 @@ export class StudyMaterialResponseDto {
   cloudinaryPublicId?: string;
   cloudinaryResourceType?: string;
   deletedAt?: Date;
+  order?: number;
   viewCount?: number;
   downloadCount?: number;
   uploadedBy?: { id: number; email?: string };

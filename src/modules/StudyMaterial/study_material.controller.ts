@@ -21,6 +21,7 @@ import { RoleName } from 'src/shared/Types/roles.enum';
 import { CreateStudyMaterialDto } from './dto/create_study_material.dto';
 import { UpdateStudyMaterialDto } from './dto/update_study_material.dto';
 import { StudyMaterialResponseDto } from './dto/study_material.response.dto';
+import { ReorderStudyMaterialDto } from './dto/reorder_study_material.dto';
 
 @ApiAuth()
 @Controller('study-materials')
@@ -136,6 +137,23 @@ export class StudyMaterialController {
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<StudyMaterialResponseDto> {
     return this.studyMaterialService.findOne(+id);
+  }
+
+  @ApiEndpoint({
+    summary: 'Reordenar materiales',
+    description:
+      'Actualiza el campo order de varios materiales a la vez, para persistir un reordenamiento manual (drag & drop) dentro de un mismo tipo.',
+    secured: true,
+    body: { type: ReorderStudyMaterialDto },
+    validateBody: true,
+    responses: [{ status: 200, description: 'Orden actualizado' }],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Patch('reorder')
+  async reorder(@Body() dto: ReorderStudyMaterialDto): Promise<{ message: string }> {
+    await this.studyMaterialService.reorder(dto.items);
+    return { message: 'Orden actualizado' };
   }
 
   @ApiEndpoint({

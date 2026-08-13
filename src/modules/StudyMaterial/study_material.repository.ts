@@ -14,7 +14,7 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
   async findBySubject(subjectId: number): Promise<StudyMaterial[]> {
     return this.find(
       { subject: subjectId, deletedAt: null },
-      { populate: ['subject', 'uploadedBy'] },
+      { populate: ['subject', 'uploadedBy'], orderBy: { type: 'ASC', order: 'ASC' } },
     );
   }
 
@@ -24,14 +24,14 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
   ): Promise<StudyMaterial[]> {
     return this.find(
       { subject: subjectId, type, deletedAt: null },
-      { populate: ['subject', 'uploadedBy'] },
+      { populate: ['subject', 'uploadedBy'], orderBy: { order: 'ASC' } },
     );
   }
 
   async findApprovedBySubject(subjectId: number): Promise<StudyMaterial[]> {
     return this.find(
       { subject: subjectId, deletedAt: null },
-      { populate: ['subject', 'uploadedBy'] },
+      { populate: ['subject', 'uploadedBy'], orderBy: { type: 'ASC', order: 'ASC' } },
     );
   }
 

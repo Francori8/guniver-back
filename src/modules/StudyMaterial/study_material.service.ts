@@ -31,6 +31,7 @@ export class StudyMaterialService {
       cloudinaryPublicId: m.cloudinaryPublicId,
       cloudinaryResourceType: m.cloudinaryResourceType,
       deletedAt: m.deletedAt,
+      order: m.order,
       viewCount: m.viewCount,
       downloadCount: m.downloadCount,
       uploadedBy: m.uploadedBy
@@ -103,7 +104,7 @@ export class StudyMaterialService {
 
     const list = await this.studyMaterialRepository.find(
       { deletedAt: null },
-      { populate: ['subject', 'uploadedBy'] },
+      { populate: ['subject', 'uploadedBy'], orderBy: { type: 'ASC', order: 'ASC' } },
     );
     return list.map((m) => this.toResponseDto(m));
   }
@@ -154,6 +155,15 @@ export class StudyMaterialService {
     }
 
     return this.toResponseDto(m);
+  }
+
+  async reorder(items: { id: number; order: number }[]): Promise<void> {
+    for (const item of items) {
+      const m = await this.studyMaterialRepository.findOne(item.id);
+      if (!m) continue;
+      m.order = item.order;
+    }
+    await this.studyMaterialRepository.em.flush();
   }
 
   async registerView(id: number): Promise<void> {

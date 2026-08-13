@@ -12,6 +12,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "start:prod:migrate": "mikro-orm migration:up --config ./mikro-orm.config.ts && node dist/main",
     "migration:create": "mikro-orm migration:create --config ./mikro-orm.config.ts",
     "migration:up": "mikro-orm migration:up --config ./mikro-orm.config.ts",
     "migration:down": "mikro-orm migration:down --config ./mikro-orm.config.ts",

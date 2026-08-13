@@ -42,6 +42,11 @@ export class StudyMaterial {
   @Property({ nullable: true })
   deletedAt?: Date;
 
+  // Orden dentro de su (subject, type) — más chico va primero. Se reordena
+  // desde el panel admin (drag & drop), no depende del orden de creación.
+  @Property({ default: 0 })
+  order: number = 0;
+
   @Property({ default: 0 })
   viewCount: number = 0;
 
