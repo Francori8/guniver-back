@@ -12,7 +12,11 @@ que ya existía para activar cuenta:
   token tras usarlo (no se puede reusar).
 - ✅ `MailService.sendPasswordResetEmail`.
 - ✅ Frontend: `/olvide-password` y `/reset-password`, link en `/login`.
-- ✅ 4 tests e2e nuevos en `test/auth.e2e-spec.ts` (13 total en el archivo).
+- ✅ `POST /auth/change-password` (usuario ya logueado, requiere la contraseña
+  actual) + formulario colapsable en `/profile` — antes solo existía el reset
+  "sin sesión" y el `PUT /users/:id` admin-only; un estudiante logueado no tenía
+  forma de cambiar su propia contraseña.
+- ✅ 7 tests e2e nuevos en `test/auth.e2e-spec.ts` (16 total en el archivo).
 
 Pendiente, no bloqueante:
 - [ ] Rate limiting básico en `forgot-password` (evitar que alguien spamee mails
@@ -149,6 +153,15 @@ de punta a punta, no una extensión de algo existente:
 - [ ] Frontend: componente de árbol/grafo visual (evaluar librería — algo tipo
       React Flow para nodos conectados, o un layout más simple de columnas por
       "nivel" si las correlativas no forman ciclos complejos).
+- [ ] **Nota de diseño (pendiente de decidir):** hoy el `order` de `StudyMaterial`
+      (drag & drop en `admin/materials`) es un orden manual, independiente de
+      cualquier estructura de la carrera. Cuando exista el árbol de correlativas,
+      evaluar si el orden de "Mis Materias" (`/dashboard`, con buscador agregado)
+      debería reflejar el árbol (materias más tempranas primero según nivel/año)
+      en vez del orden alfabético actual de `SubjectCard`. No es lo mismo
+      ordenar *materiales dentro de una materia* (ya resuelto) que ordenar
+      *materias dentro de una carrera* según su posición en el plan de estudios
+      (no resuelto, y depende de que el árbol de correlativas exista primero).
 - [ ] Admin: carga masiva de correlativas por carrera (probablemente vía CSV o
       un formulario dedicado, dado el volumen — una carrera puede tener 30+
       materias con dependencias entre sí).

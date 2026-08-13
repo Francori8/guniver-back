@@ -146,4 +146,47 @@ describe('Auth (e2e)', () => {
       .send({ token, password: 'OtraPass123' })
       .expect(400);
   });
+
+  it('POST /auth/change-password requires authentication', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/change-password')
+      .send({ currentPassword: 'StudentPass123', newPassword: 'NuevaPass456' })
+      .expect(401);
+  });
+
+  it('POST /auth/change-password rejects the wrong current password', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@guniver.test', password: 'NuevaPass123' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/auth/change-password')
+      .set('Authorization', `Bearer ${login.body.access_token}`)
+      .send({ currentPassword: 'wrong-password', newPassword: 'NuevaPass456' })
+      .expect(400);
+  });
+
+  it('POST /auth/change-password updates the password when the current one is correct', async () => {
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@guniver.test', password: 'NuevaPass123' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/auth/change-password')
+      .set('Authorization', `Bearer ${login.body.access_token}`)
+      .send({ currentPassword: 'NuevaPass123', newPassword: 'NuevaPass456' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@guniver.test', password: 'NuevaPass123' })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@guniver.test', password: 'NuevaPass456' })
+      .expect(201);
+  });
 });

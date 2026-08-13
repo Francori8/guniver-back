@@ -111,4 +111,23 @@ export class AuthService {
 
     return this.login(user);
   }
+
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userService.findByIdWithRole(userId);
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      throw new BadRequestException('La contraseña actual es incorrecta');
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await this.userService.save(user);
+  }
 }

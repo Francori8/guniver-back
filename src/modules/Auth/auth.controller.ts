@@ -17,6 +17,7 @@ import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ActivateAccountDto } from './dto/activate_account.dto';
 import { ForgotPasswordDto } from './dto/forgot_password.dto';
 import { ResetPasswordDto } from './dto/reset_password.dto';
+import { ChangePasswordDto } from './dto/change_password.dto';
 import { UserService } from '../User/user.service';
 
 @Controller('auth')
@@ -108,6 +109,19 @@ export class AuthController {
       user: result.user,
       message: 'Contraseña restablecida exitosamente',
     };
+  }
+
+  @Post('change-password')
+  @ApiAuth()
+  @ApiOperation({ summary: 'Cambiar la contraseña estando logueado (requiere la actual)' })
+  @ApiBody({ type: ChangePasswordDto })
+  async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
+    await this.authService.changePassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { message: 'Contraseña actualizada exitosamente' };
   }
 
   @Post('logout')
