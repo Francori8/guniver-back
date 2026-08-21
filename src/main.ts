@@ -2,23 +2,19 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Habilitar cookie-parser para leer cookies en requests
-  app.use(cookieParser());
-
   // Configurar CORS para permitir requests desde el frontend
   const allowedOrigins = [
     'http://localhost:3001',
+    'http://localhost:3011',
     'http://192.168.1.61:3001',
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ];
   app.enableCors({
     origin: allowedOrigins,
-    credentials: true, // Permite enviar cookies
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   });

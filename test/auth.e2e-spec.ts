@@ -47,7 +47,7 @@ describe('Auth (e2e)', () => {
       .expect(401);
   });
 
-  it('POST /auth/login succeeds and sets guniver_token cookie', async () => {
+  it('POST /auth/login succeeds and returns an access token', async () => {
     const response = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'admin@guniver.test', password: 'AdminPass123' })
@@ -55,11 +55,6 @@ describe('Auth (e2e)', () => {
 
     expect(response.body.access_token).toBeDefined();
     expect(response.body.user.email).toBe('admin@guniver.test');
-    expect(
-      response.headers['set-cookie']?.some((c: string) =>
-        c.startsWith('guniver_token='),
-      ),
-    ).toBe(true);
   });
 
   it('GET /auth/me returns 401 without a token', async () => {
@@ -82,16 +77,8 @@ describe('Auth (e2e)', () => {
     expect(me.body.user.email).toBe('admin@guniver.test');
   });
 
-  it('POST /auth/logout clears the auth cookie', async () => {
-    const response = await request(app.getHttpServer())
-      .post('/auth/logout')
-      .expect(201);
-
-    expect(
-      response.headers['set-cookie']?.some((c: string) =>
-        c.startsWith('guniver_token=;'),
-      ),
-    ).toBe(true);
+  it('POST /auth/logout responds successfully', async () => {
+    await request(app.getHttpServer()).post('/auth/logout').expect(201);
   });
 
   it('POST /auth/forgot-password always responds 200, even for an unknown email', async () => {

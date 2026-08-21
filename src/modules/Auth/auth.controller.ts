@@ -5,9 +5,7 @@ import {
   Request,
   Body,
   Get,
-  Res,
 } from '@nestjs/common';
-import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { LocalAuthGuard } from 'src/shared/guards/local_auth.guard';
@@ -31,21 +29,11 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Iniciar sesión con email y contraseña' })
   @ApiBody({ type: LoginDto })
-  async login(@Request() req, @Res({ passthrough: true }) res: Response) {
+  async login(@Request() req) {
     const result = await this.authService.login(req.user);
 
-    // Configurar cookie HttpOnly con el token (para frontend web)
-    res.cookie('guniver_token', result.access_token, {
-      httpOnly: true, // No accesible desde JavaScript
-      secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' necesario: back y front en dominios distintos
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
-      path: '/', // Disponible en toda la app
-    });
-
-    // Devolver token en la respuesta (para Swagger/Postman) + info del usuario
     return {
-      access_token: result.access_token, // ← Para compatibilidad con Swagger
+      access_token: result.access_token,
       user: result.user,
       message: 'Login exitoso',
     };
@@ -54,19 +42,8 @@ export class AuthController {
   @Post('activate-account')
   @ApiOperation({ summary: 'Activar cuenta y definir contraseña con el token de invitación' })
   @ApiBody({ type: ActivateAccountDto })
-  async activateAccount(
-    @Body() dto: ActivateAccountDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async activateAccount(@Body() dto: ActivateAccountDto) {
     const result = await this.authService.activateAccount(dto.token, dto.password);
-
-    res.cookie('guniver_token', result.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
 
     return {
       access_token: result.access_token,
@@ -90,19 +67,8 @@ export class AuthController {
   @Post('reset-password')
   @ApiOperation({ summary: 'Restablecer contraseña con el token recibido por mail' })
   @ApiBody({ type: ResetPasswordDto })
-  async resetPassword(
-    @Body() dto: ResetPasswordDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async resetPassword(@Body() dto: ResetPasswordDto) {
     const result = await this.authService.resetPassword(dto.token, dto.password);
-
-    res.cookie('guniver_token', result.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
 
     return {
       access_token: result.access_token,
@@ -126,14 +92,7 @@ export class AuthController {
 
   @Post('logout')
   @ApiOperation({ summary: 'Cerrar sesión' })
-  async logout(@Res({ passthrough: true }) res: Response) {
-    // Eliminar la cookie (mismos atributos que al setearla, si no el navegador la ignora)
-    res.clearCookie('guniver_token', {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    });
+  async logout() {
     return { message: 'Logout exitoso' };
   }
 
