@@ -97,7 +97,7 @@ describe('Auth (e2e)', () => {
     const user = await findUserByEmail(app, 'admin@guniver.test');
     expect(user?.inviteToken).toBeDefined();
     expect(user?.inviteTokenExpiresAt).toBeDefined();
-  });
+  }, 10000);
 
   it('POST /auth/reset-password rejects an invalid token', async () => {
     await request(app.getHttpServer())

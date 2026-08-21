@@ -1,6 +1,8 @@
 // src/app.module.ts
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { RoleModule } from './modules/Role/role.module';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './modules/User/user.module';
@@ -23,6 +25,9 @@ import { CareerRequestModule } from './modules/CareerRequest/career_request.modu
     ConfigModule.forRoot({
       envFilePath: process.env.NODE_ENV === 'test' ? '.env.test' : '.env',
     }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60000, limit: 60 }],
+    }),
     MikroOrmModule.forRoot({ ...mikroOrmConfig, autoLoadEntities: true }),
     RoleModule,
     UserModule,
@@ -37,6 +42,12 @@ import { CareerRequestModule } from './modules/CareerRequest/career_request.modu
     UploadsModule,
     PublicModule,
     CareerRequestModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

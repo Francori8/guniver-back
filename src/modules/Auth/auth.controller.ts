@@ -6,6 +6,7 @@ import {
   Body,
   Get,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { LocalAuthGuard } from 'src/shared/guards/local_auth.guard';
@@ -52,6 +53,7 @@ export class AuthController {
     };
   }
 
+  @Throttle({ default: { limit: 3, ttl: 300000 } })
   @Post('forgot-password')
   @ApiOperation({
     summary: 'Pedir restablecimiento de contraseña',
