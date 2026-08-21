@@ -18,10 +18,12 @@ import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
 import { RolesGuard } from 'src/shared/guards/role.guard';
 import { Roles } from 'src/shared/Decorators/roles.decorator';
 import { RoleName } from 'src/shared/Types/roles.enum';
+import { getRoleName } from 'src/shared/Types/get-role-name';
 import { CreateStudyMaterialDto } from './dto/create_study_material.dto';
 import { UpdateStudyMaterialDto } from './dto/update_study_material.dto';
 import { StudyMaterialResponseDto } from './dto/study_material.response.dto';
 import { ReorderStudyMaterialDto } from './dto/reorder_study_material.dto';
+import { RejectStudyMaterialDto } from './dto/reject_study_material.dto';
 
 @ApiAuth()
 @Controller('study-materials')
@@ -41,8 +43,6 @@ export class StudyMaterialController {
       },
     ],
   })
-  @UseGuards(RolesGuard)
-  @Roles(RoleName.ADMIN)
   @Post()
   async create(
     @Body() createDto: CreateStudyMaterialDto,
@@ -89,6 +89,7 @@ export class StudyMaterialController {
   })
   @Get()
   async findAll(
+    @Request() req,
     @Query('subjectId') subjectId?: string,
     @Query('type') type?: string,
     @Query('uploaderId') uploaderId?: string,
@@ -99,7 +100,28 @@ export class StudyMaterialController {
     if (type) filters.type = type;
     if (uploaderId) filters.uploaderId = +uploaderId;
     if (popular) filters.popular = popular === 'true';
+    filters.onlyApproved = getRoleName(req.user.role) !== RoleName.ADMIN;
     return this.studyMaterialService.findAll(filters);
+  }
+
+  @ApiEndpoint({
+    summary: 'Ver materiales pendientes de aprobación',
+    description: 'Materiales subidos por estudiantes que todavía no fueron revisados.',
+    secured: true,
+    responses: [
+      {
+        status: 200,
+        description: 'Lista de materiales pendientes',
+        type: StudyMaterialResponseDto,
+        isArray: true,
+      },
+    ],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Get('pending')
+  async findPending(): Promise<StudyMaterialResponseDto[]> {
+    return this.studyMaterialService.findPending();
   }
 
   @ApiEndpoint({
@@ -239,6 +261,53 @@ export class StudyMaterialController {
   @Patch(':id/restore')
   async restore(@Param('id') id: string, @Request() req): Promise<StudyMaterialResponseDto> {
     return this.studyMaterialService.restore(+id, req.user.userId);
+  }
+
+  @ApiEndpoint({
+    summary: 'Aprobar un material pendiente',
+    description: 'Publica un material subido por un estudiante que estaba en revisión.',
+    params: [{ name: 'id', description: 'ID del material', required: true }],
+    secured: true,
+    responses: [
+      {
+        status: 200,
+        description: 'Material aprobado',
+        type: StudyMaterialResponseDto,
+      },
+      { status: 400, description: 'El material ya fue revisado' },
+    ],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Patch(':id/approve')
+  async approve(@Param('id') id: string, @Request() req): Promise<StudyMaterialResponseDto> {
+    return this.studyMaterialService.approve(+id, req.user.userId);
+  }
+
+  @ApiEndpoint({
+    summary: 'Rechazar un material pendiente',
+    description: 'Rechaza un material subido por un estudiante, con un motivo opcional.',
+    params: [{ name: 'id', description: 'ID del material', required: true }],
+    body: { type: RejectStudyMaterialDto },
+    secured: true,
+    responses: [
+      {
+        status: 200,
+        description: 'Material rechazado',
+        type: StudyMaterialResponseDto,
+      },
+      { status: 400, description: 'El material ya fue revisado' },
+    ],
+  })
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.ADMIN)
+  @Patch(':id/reject')
+  async reject(
+    @Param('id') id: string,
+    @Body() dto: RejectStudyMaterialDto,
+    @Request() req,
+  ): Promise<StudyMaterialResponseDto> {
+    return this.studyMaterialService.reject(+id, dto, req.user.userId);
   }
 
   @ApiEndpoint({
