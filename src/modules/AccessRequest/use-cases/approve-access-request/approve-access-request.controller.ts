@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Patch, Request, UseGuards } from '@nestjs/common';
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
 import { RolesGuard } from 'src/shared/guards/role.guard';
@@ -29,7 +29,11 @@ export class ApproveAccessRequestController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Patch(':id/approve')
-  async approve(@Param('id') id: string, @Body() dto: ApproveAccessRequestDto) {
-    return this.approveAccessRequestService.execute(+id, dto);
+  async approve(
+    @Param('id') id: string,
+    @Body() dto: ApproveAccessRequestDto,
+    @Request() req,
+  ) {
+    return this.approveAccessRequestService.execute(+id, dto, req.user.userId);
   }
 }

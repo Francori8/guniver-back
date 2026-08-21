@@ -7,6 +7,7 @@ import { ProfileModule } from '../Profile/profile.module';
 import { MailModule } from '../Mail/mail.module';
 import { UniversityModule } from '../University/university.module';
 import { CareerModule } from '../Career/career.module';
+import { AuditLogModule } from '../AuditLog/audit_log.module';
 
 import { CreateAccessRequestController } from './use-cases/create-access-request/create-access-request.controller';
 import { CreateAccessRequestService } from './use-cases/create-access-request/create-access-request.service';
@@ -26,6 +27,7 @@ import { RejectAccessRequestService } from './use-cases/reject-access-request/re
     MailModule,
     UniversityModule,
     CareerModule,
+    AuditLogModule,
   ],
   controllers: [
     CreateAccessRequestController,

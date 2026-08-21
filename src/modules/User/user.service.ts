@@ -12,12 +12,15 @@ import { RoleRepository } from '../Role/role.repository';
 import { UpdateUserDto } from './dto/update-user,dto';
 import { User } from 'src/modules/User/user.entity';
 import { PaginatedResult } from 'src/shared/Types/paginated-result';
+import { AuditLogService } from '../AuditLog/audit_log.service';
+import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly roleRepository: RoleRepository,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   toResponseDto(user: User): UserResponseDto {
@@ -56,7 +59,10 @@ export class UserService {
 
     return { message: 'Contraseñas hasheadas correctamente' };
   }
-  async createUser(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+  async createUser(
+    createUserDto: CreateUserDto,
+    actorUserId: number,
+  ): Promise<UserResponseDto> {
     const role = await this.roleRepository.findById(createUserDto.roleId);
     if (!role) {
       throw new NotFoundException(
@@ -73,6 +79,13 @@ export class UserService {
     });
 
     await this.userRepository.save(user);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.CREATE,
+      AuditEntityType.USER,
+      user.id,
+      { email: user.email },
+    );
     return this.toResponseDto(user);
   }
 
@@ -116,6 +129,7 @@ export class UserService {
   async updateUser(
     id: number,
     updates: UpdateUserDto,
+    actorUserId: number,
   ): Promise<UserResponseDto> {
     const user = await this.userRepository.findByIdWithProfiles(id);
     if (!user) {
@@ -123,12 +137,15 @@ export class UserService {
     }
 
     const { roleId, password, ...rest } = updates;
+    const previousRoleName = user.role.name;
+    let roleChanged = false;
 
     if (roleId) {
       const role = await this.roleRepository.findById(roleId);
       if (!role) {
         throw new NotFoundException(`Role with ID ${roleId} not found`);
       }
+      roleChanged = role.name !== previousRoleName;
       user.role = role;
     }
 
@@ -137,10 +154,28 @@ export class UserService {
       user.password = await bcrypt.hash(password, 10);
     }
     await this.userRepository.save(user);
+
+    if (roleChanged) {
+      await this.auditLogService.log(
+        actorUserId,
+        AuditAction.ROLE_CHANGE,
+        AuditEntityType.USER,
+        user.id,
+        { from: previousRoleName, to: user.role.name },
+      );
+    } else {
+      await this.auditLogService.log(
+        actorUserId,
+        AuditAction.UPDATE,
+        AuditEntityType.USER,
+        user.id,
+      );
+    }
+
     return this.toResponseDto(user);
   }
 
-  async deleteUser(id: number): Promise<void> {
+  async deleteUser(id: number, actorUserId: number): Promise<void> {
     const user = await this.userRepository.findByIdWithProfiles(id);
     if (!user) {
       throw new NotFoundException(`User with ID ${id} not found`);
@@ -154,5 +189,12 @@ export class UserService {
     }
     this.userRepository.em.remove(user);
     await this.userRepository.em.flush();
+
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.DELETE,
+      AuditEntityType.USER,
+      id,
+    );
   }
 }

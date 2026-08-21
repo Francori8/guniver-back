@@ -7,12 +7,15 @@ import { Career } from './career.entity';
 import { UpdateCareerDto } from './dto/update_career.dto';
 import { CreateCareerDto } from './dto/create_career.dto';
 import { PaginatedResult } from 'src/shared/Types/paginated-result';
+import { AuditLogService } from '../AuditLog/audit_log.service';
+import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
 
 @Injectable()
 export class CareerService {
   constructor(
     private readonly careerRepository: CareerRepository,
     private readonly universityRepository: UniversityRepository,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   toResponseDto(career: Career): CareerResponseDto {
@@ -30,7 +33,10 @@ export class CareerService {
     });
   }
 
-  async create(createCareerDto: CreateCareerDto): Promise<CareerResponseDto> {
+  async create(
+    createCareerDto: CreateCareerDto,
+    actorUserId: number,
+  ): Promise<CareerResponseDto> {
     const university = await this.universityRepository.findOne(
       createCareerDto.universityId,
     );
@@ -46,6 +52,12 @@ export class CareerService {
     });
 
     await this.careerRepository.save(career);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.CREATE,
+      AuditEntityType.CAREER,
+      career.id,
+    );
     return this.toResponseDto(career);
   }
 
@@ -107,6 +119,7 @@ export class CareerService {
   async update(
     id: number,
     updates: UpdateCareerDto,
+    actorUserId: number,
   ): Promise<CareerResponseDto> {
     const career = await this.careerRepository.findOne(id, {
       populate: ['university'],
@@ -130,14 +143,26 @@ export class CareerService {
     const { universityId, ...rest } = updates;
     this.careerRepository.assign(career, rest, { ignoreUndefined: true });
     await this.careerRepository.save(career);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.UPDATE,
+      AuditEntityType.CAREER,
+      career.id,
+    );
     return this.toResponseDto(career);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, actorUserId: number): Promise<void> {
     const career = await this.careerRepository.findOne(id);
     if (!career) {
       throw new NotFoundException(`Career with ID ${id} not found`);
     }
     await this.careerRepository.removeAndFlush(career);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.DELETE,
+      AuditEntityType.CAREER,
+      id,
+    );
   }
 }

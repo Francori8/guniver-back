@@ -1,4 +1,4 @@
-import { Controller, Param, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Param, Patch, Request, UseGuards } from '@nestjs/common';
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
 import { RolesGuard } from 'src/shared/guards/role.guard';
@@ -24,7 +24,7 @@ export class RejectCareerRequestController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Patch(':id/reject')
-  async reject(@Param('id') id: string) {
-    return this.rejectCareerRequestService.execute(+id);
+  async reject(@Param('id') id: string, @Request() req) {
+    return this.rejectCareerRequestService.execute(+id, req.user.userId);
   }
 }

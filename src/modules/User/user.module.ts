@@ -9,9 +9,10 @@ import { UserService } from './user.service';
 import { UserRepository } from './user.repository';
 import { RoleModule } from '../Role/role.module';
 import { ProfileModule } from '../Profile/profile.module';
+import { AuditLogModule } from '../AuditLog/audit_log.module';
 
 @Module({
-  imports: [RoleModule],
+  imports: [RoleModule, AuditLogModule],
   controllers: [UserController],
   providers: [UserService, UserRepository],
   exports: [UserService, UserRepository],

@@ -202,8 +202,9 @@ export class StudyMaterialController {
   async update(
     @Param('id') id: string,
     @Body() updates: UpdateStudyMaterialDto,
+    @Request() req,
   ): Promise<StudyMaterialResponseDto> {
-    return this.studyMaterialService.update(+id, updates);
+    return this.studyMaterialService.update(+id, updates, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -216,8 +217,8 @@ export class StudyMaterialController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<{ message: string }> {
-    await this.studyMaterialService.delete(+id);
+  async delete(@Param('id') id: string, @Request() req): Promise<{ message: string }> {
+    await this.studyMaterialService.delete(+id, req.user.userId);
     return { message: 'StudyMaterial deleted successfully' };
   }
 
@@ -236,8 +237,8 @@ export class StudyMaterialController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Patch(':id/restore')
-  async restore(@Param('id') id: string): Promise<StudyMaterialResponseDto> {
-    return this.studyMaterialService.restore(+id);
+  async restore(@Param('id') id: string, @Request() req): Promise<StudyMaterialResponseDto> {
+    return this.studyMaterialService.restore(+id, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -250,8 +251,8 @@ export class StudyMaterialController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Delete(':id/permanent')
-  async permanentDelete(@Param('id') id: string): Promise<{ message: string }> {
-    await this.studyMaterialService.permanentDelete(+id);
+  async permanentDelete(@Param('id') id: string, @Request() req): Promise<{ message: string }> {
+    await this.studyMaterialService.permanentDelete(+id, req.user.userId);
     return { message: 'StudyMaterial permanently deleted' };
   }
 }

@@ -23,6 +23,40 @@ Pendiente, no bloqueante:
   guard global 60 req/min + `@Throttle` específico de 3 cada 5 min en
   `forgot-password` (`auth.controller.ts`).
 
+**Migración de auth: cookies httpOnly → Bearer token + localStorage
+(2026-08-21).** Se detectó que la cookie cross-domain (`sameSite: 'none'`)
+causaba fallos intermitentes de login (confirmado en un caso real: un usuario
+no podía entrar, funcionaba en incógnito de forma inconsistente) — problema
+típico de cookies cross-site según navegador/config. Se decidió migrar a
+Bearer token en `localStorage` por simplicidad y debuggeabilidad, priorizando
+eso sobre el hardening XSS que dan las cookies httpOnly (evaluado y aceptado
+como trade-off razonable para esta etapa del proyecto, con `dompurify` ya
+mitigando parcialmente).
+- ✅ Backend: `auth.controller.ts` ya no setea/limpia cookies en
+  login/activate-account/reset-password/logout — solo devuelve `access_token`
+  en el body. `jwt.strategy.ts` simplificado a extraer solo de
+  `Authorization: Bearer`. `main.ts` sin `cookie-parser` ni `credentials: true`
+  en CORS.
+- ✅ Frontend: `lib/axios.ts` con interceptor de request que inyecta
+  `Authorization: Bearer <token>` desde `localStorage` (sin `withCredentials`).
+  `AuthContext.tsx` con `login(token)`/`logout()` que manejan el
+  `localStorage`; `checkAuth()` solo pega a `/auth/me` si hay token guardado.
+  Actualizados `login`, `activar-cuenta`, `reset-password` para usar el nuevo
+  `login()`.
+- ✅ Usuarios con cookie vieja: logout transparente (mismo flujo que sesión
+  expirada), no requiere ninguna migración de datos.
+- ✅ Tests e2e de `auth.e2e-spec.ts` actualizados al nuevo contrato sin cookies
+  (16 tests, todos pasan).
+
+- ✅ **`JWT_SECRET` con fallback inseguro — arreglado (2026-08-21):**
+  `auth.module.ts` y `jwt.strategy.ts` tenían `configService.get('JWT_SECRET')
+  || 'secretKey'` — si faltaba la env var, la app arrancaba igual firmando
+  tokens con un secreto trivial y público (visible en el propio repo). Ahora
+  ambos lanzan `Error` al bootstrap si `JWT_SECRET` no está definida, en vez
+  de caer al default. Confirmado que `JWT_SECRET` ya está seteada en
+  `.env`/`.env.test`/`.env.example` y en las env vars de Railway (producción),
+  así que el cambio no afecta ningún entorno existente.
+
 ## 1. Estudiantes pueden subir material con categoría
 
 Hoy `POST /uploads` y `POST /study-materials` son exclusivos de `RoleName.ADMIN`
@@ -67,7 +101,6 @@ Habilitar que un estudiante suba apuntes propios implica:
 - [ ] Mostrar en la vista pública del material (una vez aprobado) que fue
       "Subido por un estudiante" con el nombre, para distinguirlo del material
       oficial curado por admin.
-- [ ] Frontend admin: vista de moderación si se implementa aprobación.
 
 ## 2. Vincular universidades
 
@@ -186,6 +219,65 @@ Repasar qué tan conectado está `University` al resto del dominio — hoy parec
       ningún lado del frontend.** `findPopular()` en el repo ya ordena por
       `viewCount` — falta exponer un ranking de "más populares" en algún panel
       (admin o dashboard del estudiante).
+- ✅ **Log de auditoría de acciones admin — backend implementado (2026-08-21).**
+      Motivación: con varios admins operando, hoy no había forma de saber quién
+      borró/aprobó/rechazó algo si hacía falta investigar un cambio raro (surgió
+      justo el mismo día por un caso real: un usuario promovido a ADMIN seguía
+      viendo 403 porque su JWT viejo tenía el rol anterior — con el log ahora
+      queda trazado quién y cuándo hizo el cambio de rol).
+      - Módulo nuevo `AuditLog` (`entity`, `repository`, `service`,
+        `controller`, `module`) siguiendo el mismo patrón `BaseRepository` del
+        resto del repo. Tabla `audit_log` (`id`, `actor_id` FK a `user`,
+        `action: CREATE|UPDATE|DELETE|APPROVE|REJECT|ROLE_CHANGE`,
+        `entity_type: User|University|Career|Subject|StudyMaterial|
+        AccessRequest|CareerRequest`, `entity_id`, `metadata jsonb?`,
+        `created_at`) — migración `Migration20260821184629` ya generada y
+        aplicada.
+      - `AuditLogService.log(actorUserId, action, entityType, entityId,
+        metadata?)` conectado en los puntos de mutación de los 5 módulos CRUD
+        (`University`/`Career`/`Subject`/`StudyMaterial`/`User` — create/
+        update/delete, más restore/permanentDelete en StudyMaterial) y los 4
+        use-cases de aprobar/rechazar (`AccessRequest`/`CareerRequest`). Los
+        controllers que no recibían `@Request()` lo agregaron para pasar
+        `req.user.userId` como actor.
+      - `UserService.updateUser` distingue `ROLE_CHANGE` de `UPDATE` normal
+        cuando el `roleId` cambia, guardando `{ from, to }` en `metadata`.
+      - `GET /audit-logs` (admin-only, paginado) para consultar — sin UI en
+        el frontend todavía, el valor está en que el dato exista y sea
+        consultable (por API o SQL directo) si hace falta investigar algo.
+      - 3 tests e2e nuevos (`audit-log.e2e-spec.ts`): acceso restringido a
+        admin, entrada `CREATE` al crear una universidad, entrada
+        `ROLE_CHANGE` con `from`/`to` correctos al cambiar el rol de un
+        usuario. 9 suites, 61 tests totales, todos pasan.
+      - Explícitamente fuera de alcance: analytics de estudiantes (ver ítem
+        siguiente) — son dos cosas separadas con dueños distintos (seguridad/
+        trazabilidad vs. producto), no mezcladas en la misma tabla.
+      - **Pendiente:** vista de solo lectura en el panel admin (tabla
+        filtrable por usuario/entidad/fecha) — hoy el endpoint existe pero no
+        hay UI que lo consuma.
+- [ ] **Analytics de uso de estudiantes** (idea 2026-08-21, más grande que el
+      log de auditoría de arriba — evaluar bien el esfuerzo antes de
+      arrancar). Ya existe `viewCount`/`downloadCount` por `StudyMaterial`,
+      pero es solo un contador agregado (`+1` sin guardar quién ni cuándo) —
+      **el número fácil de leer en un vistazo debe seguir existiendo tal
+      cual está**, pero además tiene que poder desglosarse (aunque sea con
+      una query SQL directa, no necesariamente con UI): "¿quién de esas 47
+      vistas fue, y cuándo?".
+      - Requiere una tabla de eventos individual además del contador
+        agregado — algo tipo `MaterialView`
+        (`id`, `student_user_id`, `study_material_id`, `viewed_at`) y
+        `MaterialDownload` equivalente (o una tabla genérica de eventos con
+        `type: view | download` si se prefiere no duplicar estructura).
+      - El contador (`viewCount`/`downloadCount`) se mantiene igual —
+        seguiría siendo un `+1` en el mismo momento en que se inserta el
+        evento detallado, no se reemplaza, son dos cosas que conviven (una
+        para el vistazo rápido, otra para el desglose).
+      - Expandir la idea a nivel sesión/usuario para entender patrones de uso
+        reales (qué materias/materiales se miran más, por qué carrera, en qué
+        época del cuatri).
+      - Sin decisiones de modelo cerradas del todo — pendiente de una sesión
+        de diseño aparte si se decide encarar (ej. si además de material
+        conviene trackear "entró a tal materia", no solo "vio tal archivo").
 
 ### Riesgo bajo / pulido
 - [ ] **Frontend sin tests** (se decidió priorizar backend por ahora — revisar
@@ -207,40 +299,38 @@ Relevado sobre las 9 páginas de `app/(dashboard)/admin/`. Ordenado por qué es
 más molesto para un admin usando esto día a día.
 
 ### Prioridad alta
-- [ ] **Sin ningún sistema de toast/notificación en toda la app.** Después de
-      aprobar, rechazar, crear, editar, eliminar o reordenar, el único
-      "feedback" es que el modal se cierra y la tabla se refresca en
-      silencio — no hay señal positiva de que la acción se procesó bien. Es
-      el hueco de UX más transversal, afecta las 9 páginas con acciones.
-      Ejemplo notable: el drag-and-drop de reordenar materiales
-      (`materials/page.tsx`) hace rollback silencioso si falla — el admin ve
-      que el orden "vuelve solo" sin entender por qué.
-- [ ] **Ningún `handleDelete`/`handleReject`/`handleRestore` captura errores.**
-      Confirmado en `access-requests`, `career-requests`, `careers`,
-      `subjects`, `universities`, `users`, `materials` y
-      `materials/papelera` — si el backend devuelve 403/500 (ej. "no se puede
-      borrar una carrera con materias asociadas"), el admin no se entera de
-      nada, la fila sigue ahí sin explicación. Notable porque "Aprobar" (que
-      pasa por un modal) sí muestra `submitError`, pero la acción simétrica
-      "Rechazar/Eliminar" en la misma página no — inconsistencia dentro de la
-      *misma* pantalla.
+- ✅ **Sistema de toasts + captura de errores — resuelto (2026-08-21).**
+      Nuevo `ToastContext`/`ToastContainer` (`app/context/ToastContext.tsx`,
+      `app/components/ToastContainer.tsx`), montado a nivel raíz en
+      `layout.tsx`. `ConfirmDialog.tsx` arreglado: antes el `try/finally` sin
+      `catch` dejaba que el error de `onConfirm` (delete/reject/restore) se
+      perdiera en silencio; ahora captura, muestra el mensaje inline en el
+      diálogo y dispara un toast de error. Agregado `successMessage` en los
+      13 usos de `ConfirmDialog` (delete/reject/restore/permanent-delete) y
+      toast de éxito en los 9 `handleSubmit` de crear/editar (universidades,
+      carreras, materias, usuarios, roles, materiales, access-requests,
+      career-requests). El rollback silencioso del drag & drop de materiales
+      (`materials/page.tsx`) ahora también dispara un toast de error antes de
+      revertir.
 
 ### Prioridad media
 - [ ] **Sin paginación, búsqueda ni filtros** en `users`, `roles`,
       `universities`, `careers`, `subjects`, `access-requests`,
-      `career-requests`, `materials/papelera` (7 de 9 páginas) — ligado
-      directamente al punto ya conocido de "Paginación ausente" en el
-      backend (sección "Riesgo medio" arriba). La única excepción es
-      `materials/page.tsx`, que sí tiene buscador + filtro por tipo — genera
-      expectativa de que el resto también lo tenga.
+      `career-requests`, `materials/papelera` (7 de 9 páginas). El *backend*
+      ya soporta paginación (ver sección "Riesgo medio" arriba) pero el
+      *frontend* pide `limit=1000` en vez de armar controles de página
+      siguiente/anterior — sigue siendo "traer todo" desde la perspectiva del
+      usuario, solo que ahora el contrato del backend ya no es el bloqueante.
+      `materials/page.tsx` sigue siendo la única con buscador + filtro real.
 - [ ] `users/page.tsx` reemplaza toda la página con un `<div>Loading...</div>`
       en texto plano (en inglés, inconsistente con el resto de la app en
       español) mientras carga `roles` — pierde el layout completo
       (back-link, título) a diferencia de las otras 8 páginas, que delegan
       el loading solo a la tabla.
-- [ ] "Restaurar" en `materials/papelera` es la única acción sin
-      `ConfirmDialog` — inconsistente con el patrón ya usado consistentemente
-      para toda acción destructiva/reversible en el resto del admin.
+- ✅ **"Restaurar" en `materials/papelera` sin `ConfirmDialog` — resuelto
+      (2026-08-21).** Ahora pasa por `ConfirmDialog` (`variant="primary"`,
+      con `successMessage`) igual que el resto de acciones del admin, en vez
+      de ejecutarse directo al click sin ningún paso intermedio.
 - [ ] Cuando falla la carga de datos dependientes de un `<select>` (ej.
       universidades/carreras en el modal de aprobar acceso), el error nunca
       se muestra — el selector queda vacío sin explicar si no hay datos o si
@@ -258,14 +348,51 @@ más molesto para un admin usando esto día a día.
       contenido ancho) generan scroll horizontal constante en mobile — no
       roto (`overflow-x-auto` ya está), pero sin columnas prioritarias/
       colapsables para achicar la fricción.
-- [ ] Sin breadcrumbs reales — solo un link fijo "Volver al panel" que
-      siempre manda al hub general, salteando pasos intermedios lógicos (ej.
-      desde `materials/papelera` no hay forma de volver a `materials`
-      directo, solo al hub).
+- ✅ **Breadcrumbs reales — resuelto para el flujo anidado (2026-08-21),
+      pendiente en el resto.** Nuevo componente `Breadcrumb.tsx` con navegación
+      real (`Admin > Universidades > UNQ > Tec. en Prog. > Bases de Datos`) en
+      las 3 páginas nuevas del flujo anidado (ver sección más abajo). Las
+      páginas planas viejas (`admin/materials/papelera`, etc.) siguen usando
+      solo `AdminBackLink` — no se tocaron, quedan como estaban.
 - [ ] Formularios validan solo con `required` nativo de HTML5, sin mensajes
       inline por campo (ej. formato de email, longitud de password) — todo
       el feedback de validación depende del error genérico del backend tras
       el submit.
+
+## 6. Flujo anidado de admin: Universidad → Carrera → Materia → Material (2026-08-21)
+
+Antes las 4 entidades se administraban en páginas planas sin relación visual
+entre sí (`/admin/universities`, `/admin/careers`, `/admin/subjects`,
+`/admin/materials`), a pesar de ser una jerarquía real
+(`University → Career → Subject → StudyMaterial`). Se agregó un camino de
+navegación por "drill-down" con breadcrumb, **sin reemplazar** las páginas
+planas existentes (conviven ambas — la plana sirve para ver/filtrar todo de
+una entidad sin importar el padre, ej. todas las materias del sistema; la
+anidada sirve para trabajar dentro del contexto de una universidad/carrera
+puntual).
+
+- ✅ Rutas nuevas: `/admin/universities/[id]` (carreras de esa universidad),
+  `/admin/universities/[id]/careers/[careerId]` (materias de esa carrera),
+  `/admin/universities/[id]/careers/[careerId]/subjects/[subjectId]`
+  (materiales de esa materia).
+- ✅ Cada nivel es clickeable desde el nivel anterior (fila de la tabla →
+  siguiente nivel) y muestra `Breadcrumb` con navegación real.
+- ✅ El botón "Crear" en cada nivel precompleta el campo padre (universidad/
+  carrera/materia) sin pedirlo en el formulario — ej. crear una materia desde
+  dentro de una carrera ya manda `careerIds: [careerId]` fijo.
+- ✅ `careerService.getOne`/`universityService.getOne` agregados (no existían).
+- ✅ Toasts de éxito/error en los 3 niveles nuevos (mismo patrón que el resto
+  del admin, ver sección 5).
+- [ ] La página de materiales dentro de este flujo
+  (`subjects/[subjectId]/page.tsx`) es una lista plana simple (crear/editar/
+  eliminar), **sin** el drag & drop de reordenar que sí tiene
+  `admin/materials/page.tsx` — si se quiere reordenar, hay que ir a la
+  página plana general. No se duplicó esa lógica a propósito (es compleja,
+  con estado local optimista) — evaluar si vale la pena unificar más
+  adelante.
+- [ ] Verificado con `tsc --noEmit` y `next build` en ambos casos, pero
+  **falta la prueba visual completa en navegador** (crear en cada nivel,
+  navegar los 4 niveles) — pendiente de confirmar por el usuario.
 
 ## Fase 2 (después de todo lo anterior)
 
@@ -453,8 +580,10 @@ cualquier momento futuro, no solo mientras ese cuatri está en curso.
 
 - ✅ Tests e2e con Postgres real en Docker para Auth/AccessRequest/CareerRequest/
   Role/User/University/Career/Subject (51 tests).
-- ✅ Deploy en producción: backend+DB en Railway, frontend en Vercel, CORS y
-  cookie cross-domain (`sameSite: 'none'` en prod) resueltos.
+- ✅ Deploy en producción: backend+DB en Railway, frontend en Vercel, CORS
+  resuelto. (Nota: originalmente usaba cookie cross-domain `sameSite: 'none'`;
+  migrado a Bearer token + localStorage el 2026-08-21, ver sección 0 arriba —
+  esta entrada queda solo como referencia histórica del deploy en sí.)
 - ✅ Visor de archivos `.md` (antes forzaban descarga) vía `MarkdownViewer` +
   `marked` + `dompurify`.
 - ✅ Botón de descarga explícito en la vista de detalle de materia.
@@ -474,3 +603,13 @@ cualquier momento futuro, no solo mientras ese cuatri está en curso.
   completándose sin error. Se descartó que fuera código (build/start funcionan
   igual en local) y que fuera el Pre-Deploy en sí (falla igual sin él). Solución
   final: Build/Start Command en blanco + solo Pre-Deploy Command con la migración.
+- ✅ Puertos locales configurables sin pisar otro proyecto corriendo en la
+  misma máquina (2026-08-21): el autor corre esto en paralelo con el
+  proyecto del trabajo, que ya usa 3000/3001/5432. Back: `PORT` en `.env`
+  (ya lo leía `process.env.PORT ?? 3000` en `main.ts`, no hubo que tocar
+  código). Front: `package.json` `"dev": "next dev"` (antes tenía `-p 3001`
+  hardcodeado) + `PORT` en `.env`, mismo patrón que el back. Local del autor:
+  back en 3010, front en 3011, DB en el Postgres compartido con otra base
+  (`DB_NAME` distinto). CORS del back (`main.ts`) tiene ambos orígenes
+  (3001 y 3011) en la whitelist para que no rompa si conviven. Nada de esto
+  afecta prod — las plataformas (Railway/Vercel) inyectan su propio `PORT`.

@@ -57,8 +57,11 @@ export class UserController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Post()
-  async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    return this.userService.createUser(createUserDto);
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @Request() req,
+  ): Promise<UserResponseDto> {
+    return this.userService.createUser(createUserDto, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -165,8 +168,9 @@ export class UserController {
   async update(
     @Param('id') id: string,
     @Body() updates: UpdateUserDto,
+    @Request() req,
   ): Promise<UserResponseDto> {
-    return this.userService.updateUser(+id, updates);
+    return this.userService.updateUser(+id, updates, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -194,8 +198,8 @@ export class UserController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<{ message: string }> {
-    await this.userService.deleteUser(+id);
+  async delete(@Param('id') id: string, @Request() req): Promise<{ message: string }> {
+    await this.userService.deleteUser(+id, req.user.userId);
     return { message: 'User deleted successfully' };
   }
 }

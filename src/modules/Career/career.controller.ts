@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { CareerService } from './career.service';
@@ -57,8 +58,9 @@ export class CareerController {
   @Post()
   async create(
     @Body() createCareerDto: CreateCareerDto,
+    @Request() req,
   ): Promise<CareerResponseDto> {
-    return this.careerService.create(createCareerDto);
+    return this.careerService.create(createCareerDto, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -203,8 +205,9 @@ export class CareerController {
   async update(
     @Param('id') id: string,
     @Body() updates: UpdateCareerDto,
+    @Request() req,
   ): Promise<CareerResponseDto> {
-    return this.careerService.update(+id, updates);
+    return this.careerService.update(+id, updates, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -232,8 +235,8 @@ export class CareerController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<{ message: string }> {
-    await this.careerService.delete(+id);
+  async delete(@Param('id') id: string, @Request() req): Promise<{ message: string }> {
+    await this.careerService.delete(+id, req.user.userId);
     return { message: 'Career deleted successfully' };
   }
 }

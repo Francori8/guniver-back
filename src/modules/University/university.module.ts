@@ -4,9 +4,10 @@ import { Module } from '@nestjs/common';
 import { UniversityService } from './university.service';
 import { UniversityController } from './university.controller';
 import { UniversityRepository } from './university.repository';
+import { AuditLogModule } from '../AuditLog/audit_log.module';
 
 @Module({
-  imports: [],
+  imports: [AuditLogModule],
   providers: [UniversityService, UniversityRepository],
   controllers: [UniversityController],
   exports: [UniversityService, UniversityRepository],

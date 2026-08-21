@@ -5,9 +5,10 @@ import { StudyMaterialRepository } from './study_material.repository';
 import { SubjectModule } from '../Subject/subject.module';
 import { UserModule } from '../User/user.module';
 import { UploadsModule } from '../Uploads/uploads.module';
+import { AuditLogModule } from '../AuditLog/audit_log.module';
 
 @Module({
-  imports: [SubjectModule, UserModule, UploadsModule],
+  imports: [SubjectModule, UserModule, UploadsModule, AuditLogModule],
   providers: [StudyMaterialService, StudyMaterialRepository],
   controllers: [StudyMaterialController],
   exports: [StudyMaterialRepository],

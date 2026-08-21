@@ -7,12 +7,15 @@ import { SubjectResponseDto } from './dto/subject.response.dto';
 import { CreateSubjectDto } from './dto/create_subject.dto';
 import { UpdateSubjectDto } from './dto/update_subject.dto';
 import { PaginatedResult } from 'src/shared/Types/paginated-result';
+import { AuditLogService } from '../AuditLog/audit_log.service';
+import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
 
 @Injectable()
 export class SubjectService {
   constructor(
     private readonly subjectRepository: SubjectRepository,
     private readonly careerRepository: CareerRepository,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   toResponseDto(subject: Subject): SubjectResponseDto {
@@ -31,7 +34,10 @@ export class SubjectService {
     });
   }
 
-  async create(createDto: CreateSubjectDto): Promise<SubjectResponseDto> {
+  async create(
+    createDto: CreateSubjectDto,
+    actorUserId: number,
+  ): Promise<SubjectResponseDto> {
     const { careerIds, ...subjectData } = createDto;
 
     if (!careerIds || careerIds.length === 0) {
@@ -51,6 +57,13 @@ export class SubjectService {
       career.subjects.add(subject);
       await this.careerRepository.save(career);
     }
+
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.CREATE,
+      AuditEntityType.SUBJECT,
+      subject.id,
+    );
 
     const created = await this.subjectRepository.findByIdWithRelations(subject.id);
     return this.toResponseDto(created!);
@@ -106,6 +119,7 @@ export class SubjectService {
   async update(
     id: number,
     updates: UpdateSubjectDto,
+    actorUserId: number,
   ): Promise<SubjectResponseDto> {
     const subject = await this.subjectRepository.findOne(id, {
       populate: ['careers'],
@@ -143,11 +157,18 @@ export class SubjectService {
     this.subjectRepository.assign(subject, rest, { ignoreUndefined: true });
     await this.subjectRepository.save(subject);
 
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.UPDATE,
+      AuditEntityType.SUBJECT,
+      subject.id,
+    );
+
     const updated = await this.subjectRepository.findByIdWithRelations(subject.id);
     return this.toResponseDto(updated!);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, actorUserId: number): Promise<void> {
     const subject = await this.subjectRepository.findOne(id);
     if (!subject)
       throw new NotFoundException(`Subject with ID ${id} not found`);
@@ -162,5 +183,11 @@ export class SubjectService {
     }
 
     await this.subjectRepository.removeAndFlush(subject);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.DELETE,
+      AuditEntityType.SUBJECT,
+      id,
+    );
   }
 }

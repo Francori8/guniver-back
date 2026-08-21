@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { UniversityService } from './university.service';
@@ -53,8 +54,9 @@ export class UniversityController {
   @Post()
   async create(
     @Body() createUniversityDto: CreateUniversityDto,
+    @Request() req,
   ): Promise<UniversityResponseDto> {
-    return this.universityService.create(createUniversityDto);
+    return this.universityService.create(createUniversityDto, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -145,8 +147,9 @@ export class UniversityController {
   async update(
     @Param('id') id: string,
     @Body() updates: UpdateUniversityDto,
+    @Request() req,
   ): Promise<UniversityResponseDto> {
-    return this.universityService.update(+id, updates);
+    return this.universityService.update(+id, updates, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -174,8 +177,8 @@ export class UniversityController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<{ message: string }> {
-    await this.universityService.delete(+id);
+  async delete(@Param('id') id: string, @Request() req): Promise<{ message: string }> {
+    await this.universityService.delete(+id, req.user.userId);
     return { message: 'University deleted successfully' };
   }
 }

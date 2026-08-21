@@ -11,6 +11,8 @@ import { ProfileService } from 'src/modules/Profile/profile.service';
 import { ProfileType } from 'src/modules/Profile/entity/profile.entity';
 import { RoleName } from 'src/shared/Types/roles.enum';
 import { MailService } from 'src/modules/Mail/mail.service';
+import { AuditLogService } from 'src/modules/AuditLog/audit_log.service';
+import { AuditAction, AuditEntityType } from 'src/modules/AuditLog/audit_log.entity';
 
 const INVITE_TOKEN_TTL_HOURS = 72;
 
@@ -23,9 +25,10 @@ export class ApproveAccessRequestService {
     private readonly profileService: ProfileService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
-  async execute(id: number, dto: ApproveAccessRequestDto) {
+  async execute(id: number, dto: ApproveAccessRequestDto, actorUserId: number) {
     const accessRequest = await this.accessRequestRepository.findOne(id);
     if (!accessRequest) {
       throw new NotFoundException(`Access request with ID ${id} not found`);
@@ -71,6 +74,14 @@ export class ApproveAccessRequestService {
     const frontendUrl = this.configService.get('FRONTEND_URL');
     const activationUrl = `${frontendUrl}/activar-cuenta?token=${inviteToken}`;
     await this.mailService.sendActivationInvite(user.email, user.firstName, activationUrl);
+
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.APPROVE,
+      AuditEntityType.ACCESS_REQUEST,
+      accessRequest.id,
+      { createdUserId: user.id, email: user.email },
+    );
 
     return { id: accessRequest.id, status: accessRequest.status, userId: user.id };
   }

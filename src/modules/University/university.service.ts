@@ -6,10 +6,15 @@ import { University } from './university.entity';
 import { CreateUniversityDto } from './dtos/create_university.dto';
 import { UpdateUniversityDto } from './dtos/update_university.dto';
 import { PaginatedResult } from 'src/shared/Types/paginated-result';
+import { AuditLogService } from '../AuditLog/audit_log.service';
+import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
 
 @Injectable()
 export class UniversityService {
-  constructor(private readonly universityRepository: UniversityRepository) {}
+  constructor(
+    private readonly universityRepository: UniversityRepository,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   toResponseDto(university: University): UniversityResponseDto {
     return new UniversityResponseDto({
@@ -26,9 +31,16 @@ export class UniversityService {
 
   async create(
     createUniversityDto: CreateUniversityDto,
+    actorUserId: number,
   ): Promise<UniversityResponseDto> {
     const university = this.universityRepository.create(createUniversityDto);
     await this.universityRepository.save(university);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.CREATE,
+      AuditEntityType.UNIVERSITY,
+      university.id,
+    );
     return this.toResponseDto(university);
   }
 
@@ -62,6 +74,7 @@ export class UniversityService {
   async update(
     id: number,
     updates: UpdateUniversityDto,
+    actorUserId: number,
   ): Promise<UniversityResponseDto> {
     const university = await this.universityRepository.findOne(id);
     if (!university) {
@@ -72,14 +85,26 @@ export class UniversityService {
       ignoreUndefined: true,
     });
     await this.universityRepository.save(university);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.UPDATE,
+      AuditEntityType.UNIVERSITY,
+      university.id,
+    );
     return this.toResponseDto(university);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, actorUserId: number): Promise<void> {
     const university = await this.universityRepository.findOne(id);
     if (!university) {
       throw new NotFoundException(`University with ID ${id} not found`);
     }
     await this.universityRepository.removeAndFlush(university);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.DELETE,
+      AuditEntityType.UNIVERSITY,
+      id,
+    );
   }
 }

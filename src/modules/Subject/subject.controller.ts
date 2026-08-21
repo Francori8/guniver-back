@@ -8,6 +8,7 @@ import {
   Param,
   UseGuards,
   Query,
+  Request,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 
@@ -40,8 +41,9 @@ export class SubjectController {
   @Post()
   async create(
     @Body() createDto: CreateSubjectDto,
+    @Request() req,
   ): Promise<SubjectResponseDto> {
-    return this.subjectService.create(createDto);
+    return this.subjectService.create(createDto, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -118,8 +120,9 @@ export class SubjectController {
   async update(
     @Param('id') id: string,
     @Body() updates: UpdateSubjectDto,
+    @Request() req,
   ): Promise<SubjectResponseDto> {
-    return this.subjectService.update(+id, updates);
+    return this.subjectService.update(+id, updates, req.user.userId);
   }
 
   @ApiEndpoint({
@@ -131,8 +134,8 @@ export class SubjectController {
   @UseGuards(RolesGuard)
   @Roles(RoleName.ADMIN)
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<{ message: string }> {
-    await this.subjectService.delete(+id);
+  async delete(@Param('id') id: string, @Request() req): Promise<{ message: string }> {
+    await this.subjectService.delete(+id, req.user.userId);
     return { message: 'Subject deleted successfully' };
   }
 }

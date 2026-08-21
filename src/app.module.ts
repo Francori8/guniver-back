@@ -19,6 +19,7 @@ import { MailModule } from './modules/Mail/mail.module';
 import { UploadsModule } from './modules/Uploads/uploads.module';
 import { PublicModule } from './modules/Public/public.module';
 import { CareerRequestModule } from './modules/CareerRequest/career_request.module';
+import { AuditLogModule } from './modules/AuditLog/audit_log.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { CareerRequestModule } from './modules/CareerRequest/career_request.modu
     UploadsModule,
     PublicModule,
     CareerRequestModule,
+    AuditLogModule,
   ],
   providers: [
     {

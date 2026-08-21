@@ -8,6 +8,8 @@ import { StudyMaterialResponseDto } from './dto/study_material.response.dto';
 import { CreateStudyMaterialDto } from './dto/create_study_material.dto';
 import { UpdateStudyMaterialDto } from './dto/update_study_material.dto';
 import { MaterialType } from './study_material.entity';
+import { AuditLogService } from '../AuditLog/audit_log.service';
+import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
 
 @Injectable()
 export class StudyMaterialService {
@@ -16,6 +18,7 @@ export class StudyMaterialService {
     private readonly subjectRepository: SubjectRepository,
     private readonly userRepository: UserRepository,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   toResponseDto(m: StudyMaterial): StudyMaterialResponseDto {
@@ -74,6 +77,12 @@ export class StudyMaterialService {
     } as any);
 
     await this.studyMaterialRepository.save(material);
+    await this.auditLogService.log(
+      uploadedById,
+      AuditAction.CREATE,
+      AuditEntityType.STUDY_MATERIAL,
+      material.id,
+    );
     return this.toResponseDto(material);
   }
 
@@ -134,6 +143,7 @@ export class StudyMaterialService {
   async update(
     id: number,
     updates: UpdateStudyMaterialDto,
+    actorUserId: number,
   ): Promise<StudyMaterialResponseDto> {
     const m = await this.studyMaterialRepository.findOne(id, {
       populate: ['subject', 'uploadedBy'],
@@ -161,6 +171,13 @@ export class StudyMaterialService {
     if (replacingFile && oldPublicId && oldResourceType) {
       await this.cloudinaryService.destroy(oldPublicId, oldResourceType);
     }
+
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.UPDATE,
+      AuditEntityType.STUDY_MATERIAL,
+      m.id,
+    );
 
     return this.toResponseDto(m);
   }
@@ -190,15 +207,21 @@ export class StudyMaterialService {
     await this.studyMaterialRepository.save(m);
   }
 
-  async delete(id: number): Promise<void> {
+  async delete(id: number, actorUserId: number): Promise<void> {
     const m = await this.studyMaterialRepository.findOne(id);
     if (!m)
       throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
     m.deletedAt = new Date();
     await this.studyMaterialRepository.save(m);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.DELETE,
+      AuditEntityType.STUDY_MATERIAL,
+      id,
+    );
   }
 
-  async restore(id: number): Promise<StudyMaterialResponseDto> {
+  async restore(id: number, actorUserId: number): Promise<StudyMaterialResponseDto> {
     const m = await this.studyMaterialRepository.findOne(id, {
       populate: ['subject', 'uploadedBy'],
     });
@@ -206,10 +229,17 @@ export class StudyMaterialService {
       throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
     m.deletedAt = undefined;
     await this.studyMaterialRepository.save(m);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.UPDATE,
+      AuditEntityType.STUDY_MATERIAL,
+      id,
+      { restored: true },
+    );
     return this.toResponseDto(m);
   }
 
-  async permanentDelete(id: number): Promise<void> {
+  async permanentDelete(id: number, actorUserId: number): Promise<void> {
     const m = await this.studyMaterialRepository.findOne(id);
     if (!m)
       throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
@@ -219,5 +249,12 @@ export class StudyMaterialService {
     }
 
     await this.studyMaterialRepository.removeAndFlush(m);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.DELETE,
+      AuditEntityType.STUDY_MATERIAL,
+      id,
+      { permanent: true },
+    );
   }
 }
