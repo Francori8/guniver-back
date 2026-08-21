@@ -112,15 +112,18 @@ describe('User (e2e)', () => {
       .expect(404);
   });
 
-  it('GET /users lists all users for an authenticated user', async () => {
+  it('GET /users lists all users for an authenticated user (paginated)', async () => {
     const response = await request(app.getHttpServer())
       .get('/users')
       .set('Authorization', `Bearer ${studentToken}`)
       .expect(200);
 
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true);
+    expect(response.body.total).toBeGreaterThan(0);
+    expect(response.body.page).toBe(1);
+    expect(response.body.limit).toBe(20);
     expect(
-      response.body.some((u: any) => u.email === 'nuevo@example.com'),
+      response.body.data.some((u: any) => u.email === 'nuevo@example.com'),
     ).toBe(true);
   });
 

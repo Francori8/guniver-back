@@ -7,9 +7,11 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { UniversityService } from './university.service';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
 
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
@@ -69,8 +71,11 @@ export class UniversityController {
     ],
   })
   @Get()
-  async findAll(): Promise<UniversityResponseDto[]> {
-    return this.universityService.findAll();
+  async findAll(@Query() query: PaginationQueryDto) {
+    return this.universityService.findAllPaginated(
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
   }
 
   @ApiEndpoint({

@@ -54,6 +54,13 @@ export class StudyMaterialService {
     if (!user)
       throw new NotFoundException(`User ${uploadedById} not found`);
 
+    const order =
+      createDto.order ??
+      (await this.studyMaterialRepository.getNextOrder(
+        createDto.subjectId,
+        createDto.type as MaterialType,
+      ));
+
     const material = this.studyMaterialRepository.create({
       title: createDto.title,
       description: createDto.description,
@@ -63,6 +70,7 @@ export class StudyMaterialService {
       cloudinaryPublicId: createDto.cloudinaryPublicId,
       cloudinaryResourceType: createDto.cloudinaryResourceType,
       uploadedBy: user,
+      order,
     } as any);
 
     await this.studyMaterialRepository.save(material);

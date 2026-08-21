@@ -3,9 +3,11 @@ import {
   EntityData,
   EntityManager,
   EntityRepository,
+  FilterQuery,
   IsSubset,
 } from '@mikro-orm/core';
 import { Injectable } from '@nestjs/common';
+import { PaginatedResult } from './Types/paginated-result';
 
 @Injectable()
 export class BaseRepository<T extends object> extends EntityRepository<T> {
@@ -14,6 +16,20 @@ export class BaseRepository<T extends object> extends EntityRepository<T> {
     entityClass: new () => T,
   ) {
     super(em, entityClass);
+  }
+
+  async findPaginated(
+    where: FilterQuery<T>,
+    page: number,
+    limit: number,
+    options?: Record<string, any>,
+  ): Promise<PaginatedResult<T>> {
+    const [data, total] = (await this.findAndCount(where, {
+      ...options,
+      limit,
+      offset: (page - 1) * limit,
+    } as any)) as [T[], number];
+    return { data, total, page, limit };
   }
 
   async save(entity: T): Promise<void> {

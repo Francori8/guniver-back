@@ -7,11 +7,13 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
 // ← Corregí la coma
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
@@ -74,8 +76,8 @@ export class UserController {
     ],
   })
   @Get()
-  async findAll(): Promise<UserResponseDto[]> {
-    return this.userService.findAll();
+  async findAll(@Query() query: PaginationQueryDto) {
+    return this.userService.findAllPaginated(query.page ?? 1, query.limit ?? 20);
   }
 
   @ApiEndpoint({

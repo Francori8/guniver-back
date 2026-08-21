@@ -42,6 +42,20 @@ export class UserRepository extends BaseRepository<User> {
     });
   }
 
+  async findUsersPaginated(page: number, limit: number) {
+    return this.findPaginated({}, page, limit, {
+      populate: [
+        'role',
+        'studentProfiles',
+        'adminProfiles',
+        'studentProfiles.university',
+        'studentProfiles.career',
+        'adminProfiles.university',
+      ],
+      orderBy: { id: 'ASC' },
+    });
+  }
+
   async findByIdWithRole(id: number): Promise<User | null> {
     return this.findOne({ id }, { populate: ['role'] });
   }

@@ -59,4 +59,12 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
       { populate: ['subject', 'uploadedBy'], orderBy: { deletedAt: 'desc' } },
     );
   }
+
+  async getNextOrder(subjectId: number, type: MaterialType): Promise<number> {
+    const last = await this.findOne(
+      { subject: subjectId, type },
+      { orderBy: { order: 'DESC' } },
+    );
+    return last ? last.order + 1 : 0;
+  }
 }

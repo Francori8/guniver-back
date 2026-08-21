@@ -17,4 +17,8 @@ export class UniversityRepository extends BaseRepository<University> {
   async findAllUniversities(): Promise<University[]> {
     return this.findAll();
   }
+
+  async findUniversitiesPaginated(page: number, limit: number) {
+    return this.findPaginated({}, page, limit, { orderBy: { id: 'ASC' } });
+  }
 }

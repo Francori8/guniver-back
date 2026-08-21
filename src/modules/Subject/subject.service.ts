@@ -6,6 +6,7 @@ import { StudyMaterial } from '../StudyMaterial/study_material.entity';
 import { SubjectResponseDto } from './dto/subject.response.dto';
 import { CreateSubjectDto } from './dto/create_subject.dto';
 import { UpdateSubjectDto } from './dto/update_subject.dto';
+import { PaginatedResult } from 'src/shared/Types/paginated-result';
 
 @Injectable()
 export class SubjectService {
@@ -75,6 +76,24 @@ export class SubjectService {
       populate: ['careers'],
     });
     return subjects.map((s) => this.toResponseDto(s));
+  }
+
+  async findAllPaginated(
+    page: number,
+    limit: number,
+    filters?: { careerId?: number; q?: string },
+  ): Promise<PaginatedResult<SubjectResponseDto>> {
+    const { data, total } = await this.subjectRepository.findSubjectsPaginated(
+      page,
+      limit,
+      filters,
+    );
+    return {
+      data: data.map((s) => this.toResponseDto(s)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: number): Promise<SubjectResponseDto> {

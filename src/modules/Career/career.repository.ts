@@ -14,11 +14,29 @@ export class CareerRepository extends BaseRepository<Career> {
     return this.findAll({ populate: ['university'] });
   }
 
+  async findCareersPaginated(page: number, limit: number) {
+    return this.findPaginated({}, page, limit, {
+      populate: ['university'],
+      orderBy: { id: 'ASC' },
+    });
+  }
+
   async findByUniversity(universityId: number): Promise<Career[]> {
     return this.find(
       { university: { id: universityId } },
       { populate: ['university'] },
     );
+  }
+
+  async findByUniversityPaginated(
+    universityId: number,
+    page: number,
+    limit: number,
+  ) {
+    return this.findPaginated({ university: { id: universityId } }, page, limit, {
+      populate: ['university'],
+      orderBy: { id: 'ASC' },
+    });
   }
 
   async findByNameAndUniversity(

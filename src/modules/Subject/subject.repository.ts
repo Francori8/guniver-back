@@ -14,6 +14,21 @@ export class SubjectRepository extends BaseRepository<Subject> {
     return this.find({ careers: careerId }, { populate: ['careers'] });
   }
 
+  async findSubjectsPaginated(
+    page: number,
+    limit: number,
+    filters?: { careerId?: number; q?: string },
+  ) {
+    const where: Record<string, any> = {};
+    if (filters?.careerId) where.careers = filters.careerId;
+    if (filters?.q) where.name = { $ilike: `%${filters.q}%` };
+
+    return this.findPaginated(where, page, limit, {
+      populate: ['careers'],
+      orderBy: { id: 'ASC' },
+    });
+  }
+
   async findByIdWithRelations(id: number): Promise<Subject | null> {
     return this.findOne({ id }, { populate: ['careers'] });
   }

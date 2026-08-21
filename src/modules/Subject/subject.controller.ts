@@ -19,6 +19,7 @@ import { RoleName } from 'src/shared/Types/roles.enum';
 import { CreateSubjectDto } from './dto/create_subject.dto';
 import { UpdateSubjectDto } from './dto/update_subject.dto';
 import { SubjectResponseDto } from './dto/subject.response.dto';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
 
 @ApiAuth()
 @Controller('subjects')
@@ -66,13 +67,18 @@ export class SubjectController {
   })
   @Get()
   async findAll(
+    @Query() query: PaginationQueryDto,
     @Query('careerId') careerId?: string,
     @Query('q') q?: string,
-  ): Promise<SubjectResponseDto[]> {
-    const filters: any = {};
+  ) {
+    const filters: { careerId?: number; q?: string } = {};
     if (careerId) filters.careerId = +careerId;
     if (q) filters.q = q;
-    return this.subjectService.findAll(filters);
+    return this.subjectService.findAllPaginated(
+      query.page ?? 1,
+      query.limit ?? 20,
+      filters,
+    );
   }
 
   @ApiEndpoint({

@@ -128,14 +128,60 @@ Repasar qué tan conectado está `University` al resto del dominio — hoy parec
       tests (Auth, AccessRequest, CareerRequest, Role, User, University, Career,
       Subject — 51 tests total) están cubiertos; StudyMaterial (con el nuevo campo
       `order` y el endpoint de `reorder`) no tiene ninguno todavía.
-- [ ] **Patrón de bug repetido a vigilar:** ya aparecieron y se arreglaron 5 veces
-      services que usaban `Object.assign(entity, updates)` directo en vez de
-      `repository.assign(entity, updates, { ignoreUndefined: true })`, lo que
-      pisaba campos no enviados con `NULL` (User, University, Career, Subject,
-      StudyMaterial). Si se agrega un `update()` nuevo a mano en otro módulo,
-      replicar el patrón correcto desde el arranque.
-- [ ] **Paginación ausente** en los listados (`GET /users`, `GET /study-materials`,
-      etc.) — no urge con el volumen actual pero escala mal.
+- ✅ **Patrón de bug repetido — revisado (2026-08-21):** ya aparecieron y se
+      arreglaron 5 veces services que usaban `Object.assign(entity, updates)`
+      directo en vez de `repository.assign(entity, updates, { ignoreUndefined:
+      true })`, lo que pisaba campos no enviados con `NULL`. Confirmado que
+      los 5 módulos (`user.service.ts:118`, `university.service.ts:56`,
+      `career.service.ts:95`, `subject.service.ts:124`,
+      `study_material.service.ts:150`) usan el patrón correcto hoy — no
+      quedó ningún `update()` con el bug suelto. Los `Object.assign(this,
+      partial)` que aparecen en `*.response.dto.ts` son otra cosa (constructor
+      de DTO, no entidad persistida) y no aplica el mismo riesgo. Si se agrega
+      un `update()` nuevo a mano en otro módulo, replicar el patrón correcto
+      desde el arranque.
+- ✅ **Paginación — implementada parcialmente (2026-08-21):** contrato
+      `GET /recurso?page=1&limit=20` → `{ data, total, page, limit }`, mismo
+      endpoint (sin ruta nueva) para no duplicar caminos. Helper genérico
+      `BaseRepository.findPaginated()` + `PaginationQueryDto` /
+      `PaginatedResult<T>` compartidos (`src/shared/`).
+      - Paginados: `GET /users`, `GET /universities`, `GET /careers`,
+        `GET /subjects` (con filtros `careerId`/`q` combinables), y nuevo
+        `GET /careers/university/:id/paginated` (pensado para el flujo
+        anidado de admin, ver abajo).
+      - **`GET /study-materials` queda sin paginar a propósito.** El admin
+        de materiales (`admin/materials/page.tsx`) hace drag & drop que
+        necesita el array completo de cada `(subject, type)` para reordenar
+        — paginar ahí requiere repensar esa pantalla, no es un cambio de
+        contrato simple. Pendiente cuando se toque esa página puntualmente.
+      - `GET /careers/university/:id` (sin `/paginated`) y
+        `subjectService.getAll` con `careerId` en casos de "selector chico"
+        (cascada universidad→carrera en formularios) se dejaron sin paginar
+        deliberadamente — son listas acotadas por naturaleza, paginarlas
+        agregaría complejidad sin beneficio.
+      - Frontend: todos los consumidores de `userService`/`universityService`/
+        `careerService`/`subjectService`.`getAll` actualizados al nuevo shape
+        `{ data, total, page, limit }`. Las vistas que necesitan "todo" (no
+        una página) piden `limit=1000` explícito en vez de armar UI de
+        paginación — pragmático por ahora, no es la solución final para
+        cuando el volumen crezca de verdad.
+      - Tests e2e actualizados (`user`, `university`, `subject` e2e-spec) —
+        8 suites, 58 tests, todos pasan.
+      - **Pendiente:** UI de paginación real (botones página siguiente/
+        anterior) en las tablas admin — hoy se "resuelve" pidiendo
+        `limit=1000`, que no escala indefinidamente. Ligado a la mejora de
+        UX del admin ya anotada en la sección 5.
+- ✅ **`order` sin autocompletar al crear material — arreglado (2026-08-21):**
+      `study_material.service.ts` `create()` no seteaba `order` (quedaba en
+      `0` por default de la entidad), chocando con cualquier otro material ya
+      en `0` dentro del mismo `(subject, type)` — el orden real dependía de
+      un desempate no intencional hasta que un admin lo arreglaba a mano vía
+      drag & drop. Ahora `StudyMaterialRepository.getNextOrder(subjectId,
+      type)` calcula `MAX(order) + 1` dentro de ese grupo y se usa como
+      default en `create()`; `CreateStudyMaterialDto.order` sigue siendo
+      opcional por si se quiere forzar una posición específica. Frontend no
+      necesitó cambios — ya no manda `order` en el payload de creación, así
+      que se beneficia del autocompletado sin tocar nada.
 - [ ] **`viewCount`/`downloadCount` ya se incrementan pero no se muestran en
       ningún lado del frontend.** `findPopular()` en el repo ya ordena por
       `viewCount` — falta exponer un ranking de "más populares" en algún panel

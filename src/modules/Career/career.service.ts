@@ -6,6 +6,7 @@ import { CareerResponseDto } from './dto/career.response.dto';
 import { Career } from './career.entity';
 import { UpdateCareerDto } from './dto/update_career.dto';
 import { CreateCareerDto } from './dto/create_career.dto';
+import { PaginatedResult } from 'src/shared/Types/paginated-result';
 
 @Injectable()
 export class CareerService {
@@ -53,6 +54,22 @@ export class CareerService {
     return careers.map((career) => this.toResponseDto(career));
   }
 
+  async findAllPaginated(
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult<CareerResponseDto>> {
+    const { data, total } = await this.careerRepository.findCareersPaginated(
+      page,
+      limit,
+    );
+    return {
+      data: data.map((career) => this.toResponseDto(career)),
+      total,
+      page,
+      limit,
+    };
+  }
+
   async findOne(id: number): Promise<CareerResponseDto> {
     const career = await this.careerRepository.findOne(id, {
       populate: ['university'],
@@ -66,6 +83,25 @@ export class CareerService {
   async findByUniversity(universityId: number): Promise<CareerResponseDto[]> {
     const careers = await this.careerRepository.findByUniversity(universityId);
     return careers.map((career) => this.toResponseDto(career));
+  }
+
+  async findByUniversityPaginated(
+    universityId: number,
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult<CareerResponseDto>> {
+    const { data, total } =
+      await this.careerRepository.findByUniversityPaginated(
+        universityId,
+        page,
+        limit,
+      );
+    return {
+      data: data.map((career) => this.toResponseDto(career)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async update(

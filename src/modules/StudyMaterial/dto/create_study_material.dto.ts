@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -35,4 +36,9 @@ export class CreateStudyMaterialDto {
   @IsString()
   @IsOptional()
   cloudinaryResourceType?: string;
+
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  order?: number;
 }

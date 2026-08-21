@@ -5,6 +5,7 @@ import { UniversityResponseDto } from './dtos/university.response.dto';
 import { University } from './university.entity';
 import { CreateUniversityDto } from './dtos/create_university.dto';
 import { UpdateUniversityDto } from './dtos/update_university.dto';
+import { PaginatedResult } from 'src/shared/Types/paginated-result';
 
 @Injectable()
 export class UniversityService {
@@ -34,6 +35,20 @@ export class UniversityService {
   async findAll(): Promise<UniversityResponseDto[]> {
     const universities = await this.universityRepository.findAllUniversities();
     return universities.map((university) => this.toResponseDto(university));
+  }
+
+  async findAllPaginated(
+    page: number,
+    limit: number,
+  ): Promise<PaginatedResult<UniversityResponseDto>> {
+    const { data, total } =
+      await this.universityRepository.findUniversitiesPaginated(page, limit);
+    return {
+      data: data.map((university) => this.toResponseDto(university)),
+      total,
+      page,
+      limit,
+    };
   }
 
   async findOne(id: number): Promise<UniversityResponseDto> {

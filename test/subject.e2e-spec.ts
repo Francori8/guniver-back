@@ -95,14 +95,14 @@ describe('Subject (e2e)', () => {
     );
   });
 
-  it('GET /subjects?careerId filters by career', async () => {
+  it('GET /subjects?careerId filters by career (paginated)', async () => {
     const response = await request(app.getHttpServer())
       .get(`/subjects?careerId=${career.id}`)
       .set('Authorization', `Bearer ${studentToken}`)
       .expect(200);
 
     expect(
-      response.body.every((s: any) =>
+      response.body.data.every((s: any) =>
         s.careers.some((c: any) => c.id === career.id),
       ),
     ).toBe(true);

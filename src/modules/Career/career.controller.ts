@@ -7,9 +7,11 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { CareerService } from './career.service';
+import { PaginationQueryDto } from 'src/shared/dto/pagination-query.dto';
 
 import { ApiAuth } from 'src/shared/Decorators/api_auth.decorator';
 import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
@@ -73,8 +75,8 @@ export class CareerController {
     ],
   })
   @Get()
-  async findAll(): Promise<CareerResponseDto[]> {
-    return this.careerService.findAll();
+  async findAll(@Query() query: PaginationQueryDto) {
+    return this.careerService.findAllPaginated(query.page ?? 1, query.limit ?? 20);
   }
 
   @ApiEndpoint({
@@ -130,6 +132,37 @@ export class CareerController {
     @Param('universityId') universityId: string,
   ): Promise<CareerResponseDto[]> {
     return this.careerService.findByUniversity(+universityId);
+  }
+
+  @ApiEndpoint({
+    summary: 'Obtener carreras por universidad (paginado)',
+    description:
+      'Retorna las carreras de una universidad específica con paginación, pensado para el panel admin',
+    secured: true,
+    params: [
+      {
+        name: 'universityId',
+        description: 'ID de la universidad',
+        required: true,
+      },
+    ],
+    responses: [
+      {
+        status: 200,
+        description: 'Lista paginada de carreras obtenida exitosamente',
+      },
+    ],
+  })
+  @Get('university/:universityId/paginated')
+  async findByUniversityPaginated(
+    @Param('universityId') universityId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.careerService.findByUniversityPaginated(
+      +universityId,
+      query.page ?? 1,
+      query.limit ?? 20,
+    );
   }
 
   @ApiEndpoint({
