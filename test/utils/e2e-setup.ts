@@ -9,6 +9,7 @@ import { Role } from '../../src/modules/Role/role.entity';
 import { User } from '../../src/modules/User/user.entity';
 import { University } from '../../src/modules/University/university.entity';
 import { Career } from '../../src/modules/Career/career.entity';
+import { Subject } from '../../src/modules/Subject/subject.entity';
 
 export async function createTestApp(): Promise<INestApplication> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -89,6 +90,24 @@ export async function seedCareer(
   const career = em.create(Career, params as any);
   await em.persistAndFlush(career);
   return career;
+}
+
+export async function seedSubject(
+  app: INestApplication,
+  params: { name: string; career: Career },
+): Promise<Subject> {
+  const em = forkEm(app);
+  const subject = em.create(Subject, {
+    name: params.name,
+    credits: 0,
+    hoursPerWeek: 0,
+  } as any);
+  const career = await em.findOneOrFail(Career, { id: params.career.id }, {
+    populate: ['subjects'],
+  });
+  career.subjects.add(subject);
+  await em.persistAndFlush(career);
+  return subject;
 }
 
 export async function findUserByEmail(

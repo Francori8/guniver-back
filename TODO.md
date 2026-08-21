@@ -79,28 +79,53 @@ Habilitar que un estudiante suba apuntes propios implica:
   (PDF/imágenes/docs) y un tamaño menor (ej. 10MB), para reducir riesgo de
   abuso o archivos ejecutables.
 
-- [ ] Nuevo estado en `StudyMaterial` (`status: pending | approved | rejected`,
-      similar a `AccessRequestStatus`) + endpoints de listar/aprobar/rechazar
-      para admin, siguiendo el mismo patrón ya usado en
-      `AccessRequest`/`CareerRequest` (incluido el use-case pattern del repo).
-- [ ] Relajar el guard de `POST /uploads` y `POST /study-materials` para permitir
-      cualquier usuario autenticado (no solo ADMIN), pero atado a que el material quede
-      asociado a `uploadedBy` = el usuario logueado (ya existe el campo, solo falta usarlo
-      para estudiantes en vez de siempre admins), y forzado a `status: pending`
-      si quien sube no es ADMIN.
-- [ ] "Categoría" = probablemente el `MaterialType` existente (TEORICO/PRACTICO/VIDEO/etc.),
-      confirmar si alcanza o si un estudiante necesita categorías propias/libres.
-- [ ] Backend: validación de extensión + tamaño más estricta cuando el uploader
-      no es ADMIN (mismo endpoint de `uploads.controller.ts`, regla condicional
-      por rol).
-- [ ] Frontend: formulario de "subir apunte" accesible desde `/dashboard` (no solo
-      desde `/admin/materials`), con selector de materia + tipo.
-- [ ] Frontend admin: nueva sección de moderación (listar pending, aprobar,
-      rechazar con motivo) — igual que `admin/access-requests` y
-      `admin/career-requests`.
-- [ ] Mostrar en la vista pública del material (una vez aprobado) que fue
-      "Subido por un estudiante" con el nombre, para distinguirlo del material
-      oficial curado por admin.
+✅ **Implementado completo (2026-08-21).**
+
+- ✅ Nuevo estado en `StudyMaterial`: `status: pending|approved|rejected`
+      (default `approved` para no romper los ~429 existentes), más
+      `isOfficial: boolean` (default `true`, campo explícito e independiente
+      del rol del uploader — decidido así en vez de derivarlo de
+      `uploadedBy.role`, para poder marcar como "oficial" un aporte puntual
+      sin atarlo rígido al rol) y `rejectionReason?`. Migración
+      `Migration20260821213626` generada y aplicada.
+      `GET /study-materials/pending`, `PATCH /:id/approve`,
+      `PATCH /:id/reject` (admin-only), sin use-case pattern separado (se
+      resolvió directo en `StudyMaterialService`, más simple que
+      `AccessRequest` porque no hay lógica de negocio extra tipo crear
+      perfiles o mandar mails obligatorios).
+- ✅ `POST /uploads` y `POST /study-materials` ya no son admin-only —
+      cualquier autenticado, con `status`/`isOfficial` forzados según rol del
+      uploader en el service (no expuestos como input libre del DTO).
+      `GET /study-materials` filtra `status: approved` automáticamente para
+      no-admins (admin ve todo).
+- ✅ "Categoría" = el `MaterialType` existente, alcanzó sin cambios.
+- ✅ Backend: límites de `uploads.controller.ts` — admin 20MB sin
+      restricción de extensión (como antes), estudiante 10MB y solo
+      PDF/Word/PowerPoint/imágenes.
+- ✅ Frontend: `UploadMaterialModal.tsx` (componente reusable), integrado en
+      `dashboard/materias/[id]/page.tsx` con botón "Subir apunte" — el
+      estudiante ve confirmación de que quedó pendiente de revisión.
+- ✅ Frontend admin: `/admin/study-material-requests` — nueva sección de
+      moderación (aprobar vía `ConfirmDialog`, rechazar vía modal con motivo
+      opcional), agregada al hub de `/admin`.
+- ✅ Badge visual "Aporte de estudiante"/nombre del uploader cuando
+      `!isOfficial`, tanto en la vista de estudiante (lista + visualizador)
+      como en el catálogo general de admin (`admin/materials`, incluyendo
+      badges de estado `pending`/`rejected` ahí también).
+- ✅ Bug encontrado y arreglado en el camino: la comparación de rol
+      (`req.user.role === RoleName.ADMIN`) fallaba siempre porque el JWT
+      guarda `role` como objeto `{id,name,description}`, no string — hubiera
+      roto tanto el filtro `onlyApproved` como los límites de upload por rol.
+      Extraído helper compartido `getRoleName()`
+      (`src/shared/Types/get-role-name.ts`) para no repetir el error en
+      futuros controllers.
+- ✅ 7 tests e2e nuevos (`study-material.e2e-spec.ts`): admin crea aprobado/
+      oficial, estudiante crea pendiente/no-oficial, estudiante no ve
+      pendientes en el listado general, admin sí los ve, `/pending` prohibido
+      para no-admin, aprobar (incluye rechazo de doble-aprobación), rechazar
+      con motivo. 10 suites, 68 tests totales, todos pasan.
+- [ ] Pendiente, no bloqueante: extender esta cobertura a `Uploads` y
+      `Profile` (siguen sin tests e2e, ver "Riesgo medio" arriba).
 
 ## 2. Vincular universidades
 
@@ -143,6 +168,24 @@ Repasar qué tan conectado está `University` al resto del dominio — hoy parec
       distintos, en vez de encadenarlos en el Start Command de Railway (repetir
       la migración en cada réplica al arrancar deja de ser seguro con >1 instancia,
       y complica el rollback en migraciones destructivas).
+- [ ] **Flujo de ramas: `main` → `dev` → `feature/*`** (decidido 2026-08-21).
+      Cada feature sale de `dev` y vuelve a `dev` por PR (donde corre el CI);
+      cuando `dev` está estable se promueve a `main` (que dispara el deploy
+      real). Reemplaza el flujo anterior de pushear directo a `main`.
+- [ ] **Ambiente `dev` con deploy real, barato** (idea 2026-08-21, a probar
+      por el autor). En vez de duplicar Railway (Postgres 24/7 tiene costo
+      real ahí), evaluar:
+      - Backend: **Render** free tier — se duerme tras inactividad (cold
+        start ~30-60s al primer request), aceptable para un ambiente que no
+        se usa todo el día.
+      - DB: **Supabase** o **Neon** free tier — Postgres serverless que se
+        pausa sin actividad, evita pagar una segunda instancia corriendo
+        siempre.
+      - Frontend: Vercel ya da esto gratis con preview deployments por
+        PR/rama, no requiere configuración nueva.
+      - Alternativa más simple si el costo/complejidad no vale la pena: solo
+        rama `dev` en git + pruebas locales (como se venía haciendo hasta
+        ahora), sin deploy propio.
 
 ## 4. Otras oportunidades de mejora (relevadas en esta sesión)
 

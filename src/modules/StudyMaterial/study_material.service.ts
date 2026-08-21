@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { StudyMaterialRepository } from './study_material.repository';
 import { SubjectRepository } from '../Subject/subject.repository';
 import { UserRepository } from '../User/user.repository';
@@ -7,9 +7,11 @@ import { StudyMaterial } from './study_material.entity';
 import { StudyMaterialResponseDto } from './dto/study_material.response.dto';
 import { CreateStudyMaterialDto } from './dto/create_study_material.dto';
 import { UpdateStudyMaterialDto } from './dto/update_study_material.dto';
-import { MaterialType } from './study_material.entity';
+import { RejectStudyMaterialDto } from './dto/reject_study_material.dto';
+import { MaterialStatus, MaterialType } from './study_material.entity';
 import { AuditLogService } from '../AuditLog/audit_log.service';
 import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
+import { RoleName } from 'src/shared/Types/roles.enum';
 
 @Injectable()
 export class StudyMaterialService {
@@ -38,8 +40,16 @@ export class StudyMaterialService {
       viewCount: m.viewCount,
       downloadCount: m.downloadCount,
       uploadedBy: m.uploadedBy
-        ? { id: m.uploadedBy.id, email: (m.uploadedBy as any).email }
+        ? {
+            id: m.uploadedBy.id,
+            email: (m.uploadedBy as any).email,
+            firstName: (m.uploadedBy as any).firstName,
+            lastName: (m.uploadedBy as any).lastName,
+          }
         : undefined,
+      status: m.status,
+      isOfficial: m.isOfficial,
+      rejectionReason: m.rejectionReason,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
     });
@@ -53,9 +63,11 @@ export class StudyMaterialService {
     if (!subject)
       throw new NotFoundException(`Subject ${createDto.subjectId} not found`);
 
-    const user = await this.userRepository.findOne(uploadedById);
+    const user = await this.userRepository.findByIdWithRole(uploadedById);
     if (!user)
       throw new NotFoundException(`User ${uploadedById} not found`);
+
+    const isAdmin = user.role.name === RoleName.ADMIN;
 
     const order =
       createDto.order ??
@@ -74,6 +86,8 @@ export class StudyMaterialService {
       cloudinaryResourceType: createDto.cloudinaryResourceType,
       uploadedBy: user,
       order,
+      status: isAdmin ? MaterialStatus.APPROVED : MaterialStatus.PENDING,
+      isOfficial: isAdmin,
     } as any);
 
     await this.studyMaterialRepository.save(material);
@@ -91,11 +105,13 @@ export class StudyMaterialService {
     type?: string;
     uploaderId?: number;
     popular?: boolean;
+    onlyApproved?: boolean;
   }): Promise<StudyMaterialResponseDto[]> {
     if (filters?.subjectId && filters?.type) {
       const list = await this.studyMaterialRepository.findByTypeAndSubject(
         filters.subjectId,
         filters.type as MaterialType,
+        filters.onlyApproved,
       );
       return list.map((m) => this.toResponseDto(m));
     }
@@ -103,6 +119,7 @@ export class StudyMaterialService {
     if (filters?.subjectId) {
       const list = await this.studyMaterialRepository.findBySubject(
         filters.subjectId,
+        filters.onlyApproved,
       );
       return list.map((m) => this.toResponseDto(m));
     }
@@ -120,10 +137,67 @@ export class StudyMaterialService {
     }
 
     const list = await this.studyMaterialRepository.find(
-      { deletedAt: null },
+      {
+        deletedAt: null,
+        ...(filters?.onlyApproved ? { status: MaterialStatus.APPROVED } : {}),
+      },
       { populate: ['subject', 'uploadedBy'], orderBy: { type: 'ASC', order: 'ASC' } },
     );
     return list.map((m) => this.toResponseDto(m));
+  }
+
+  async findPending(): Promise<StudyMaterialResponseDto[]> {
+    const list = await this.studyMaterialRepository.findPending();
+    return list.map((m) => this.toResponseDto(m));
+  }
+
+  async approve(id: number, actorUserId: number): Promise<StudyMaterialResponseDto> {
+    const m = await this.studyMaterialRepository.findOne(id, {
+      populate: ['subject', 'uploadedBy'],
+    });
+    if (!m)
+      throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
+    if (m.status !== MaterialStatus.PENDING) {
+      throw new BadRequestException('Este material ya fue revisado');
+    }
+
+    m.status = MaterialStatus.APPROVED;
+    m.rejectionReason = undefined;
+    await this.studyMaterialRepository.save(m);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.APPROVE,
+      AuditEntityType.STUDY_MATERIAL,
+      id,
+    );
+    return this.toResponseDto(m);
+  }
+
+  async reject(
+    id: number,
+    dto: RejectStudyMaterialDto,
+    actorUserId: number,
+  ): Promise<StudyMaterialResponseDto> {
+    const m = await this.studyMaterialRepository.findOne(id, {
+      populate: ['subject', 'uploadedBy'],
+    });
+    if (!m)
+      throw new NotFoundException(`StudyMaterial with ID ${id} not found`);
+    if (m.status !== MaterialStatus.PENDING) {
+      throw new BadRequestException('Este material ya fue revisado');
+    }
+
+    m.status = MaterialStatus.REJECTED;
+    m.rejectionReason = dto.reason;
+    await this.studyMaterialRepository.save(m);
+    await this.auditLogService.log(
+      actorUserId,
+      AuditAction.REJECT,
+      AuditEntityType.STUDY_MATERIAL,
+      id,
+      dto.reason ? { reason: dto.reason } : undefined,
+    );
+    return this.toResponseDto(m);
   }
 
   async findTrash(): Promise<StudyMaterialResponseDto[]> {

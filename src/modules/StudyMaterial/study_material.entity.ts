@@ -13,6 +13,12 @@ export enum MaterialType {
   OTHER = 'other', // Otros materiales
 }
 
+export enum MaterialStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
+
 @Entity()
 export class StudyMaterial {
   @PrimaryKey()
@@ -41,6 +47,15 @@ export class StudyMaterial {
 
   @Property({ nullable: true })
   deletedAt?: Date;
+
+  @Enum(() => MaterialStatus)
+  status: MaterialStatus = MaterialStatus.APPROVED;
+
+  @Property({ default: true })
+  isOfficial: boolean = true;
+
+  @Property({ type: 'text', nullable: true })
+  rejectionReason?: string;
 
   // Orden dentro de su (subject, type) — más chico va primero. Se reordena
   // desde el panel admin (drag & drop), no depende del orden de creación.

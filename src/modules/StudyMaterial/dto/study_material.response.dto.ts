@@ -11,7 +11,10 @@ export class StudyMaterialResponseDto {
   order?: number;
   viewCount?: number;
   downloadCount?: number;
-  uploadedBy?: { id: number; email?: string };
+  uploadedBy?: { id: number; email?: string; firstName?: string; lastName?: string };
+  status?: string;
+  isOfficial?: boolean;
+  rejectionReason?: string;
   createdAt?: Date;
   updatedAt?: Date;
 

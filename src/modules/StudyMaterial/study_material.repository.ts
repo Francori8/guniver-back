@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { EntityManager } from '@mikro-orm/core';
 
 import { BaseRepository } from 'src/shared/base-repository';
-import { MaterialType, StudyMaterial } from './study_material.entity';
+import { MaterialStatus, MaterialType, StudyMaterial } from './study_material.entity';
 
 @Injectable()
 export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
@@ -11,9 +11,16 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
     super(em, StudyMaterial);
   }
 
-  async findBySubject(subjectId: number): Promise<StudyMaterial[]> {
+  async findBySubject(
+    subjectId: number,
+    onlyApproved = false,
+  ): Promise<StudyMaterial[]> {
     return this.find(
-      { subject: subjectId, deletedAt: null },
+      {
+        subject: subjectId,
+        deletedAt: null,
+        ...(onlyApproved ? { status: MaterialStatus.APPROVED } : {}),
+      },
       { populate: ['subject', 'uploadedBy'], orderBy: { type: 'ASC', order: 'ASC' } },
     );
   }
@@ -21,17 +28,16 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
   async findByTypeAndSubject(
     subjectId: number,
     type: MaterialType,
+    onlyApproved = false,
   ): Promise<StudyMaterial[]> {
     return this.find(
-      { subject: subjectId, type, deletedAt: null },
+      {
+        subject: subjectId,
+        type,
+        deletedAt: null,
+        ...(onlyApproved ? { status: MaterialStatus.APPROVED } : {}),
+      },
       { populate: ['subject', 'uploadedBy'], orderBy: { order: 'ASC' } },
-    );
-  }
-
-  async findApprovedBySubject(subjectId: number): Promise<StudyMaterial[]> {
-    return this.find(
-      { subject: subjectId, deletedAt: null },
-      { populate: ['subject', 'uploadedBy'], orderBy: { type: 'ASC', order: 'ASC' } },
     );
   }
 
@@ -42,9 +48,16 @@ export class StudyMaterialRepository extends BaseRepository<StudyMaterial> {
     );
   }
 
+  async findPending(): Promise<StudyMaterial[]> {
+    return this.find(
+      { status: MaterialStatus.PENDING, deletedAt: null },
+      { populate: ['subject', 'uploadedBy'], orderBy: { createdAt: 'ASC' } },
+    );
+  }
+
   async findPopular(limit: number = 10): Promise<StudyMaterial[]> {
     return this.find(
-      { deletedAt: null },
+      { deletedAt: null, status: MaterialStatus.APPROVED },
       {
         populate: ['subject', 'uploadedBy'],
         orderBy: { viewCount: 'DESC' },
