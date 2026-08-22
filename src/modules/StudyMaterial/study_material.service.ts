@@ -12,6 +12,7 @@ import { MaterialStatus, MaterialType } from './study_material.entity';
 import { AuditLogService } from '../AuditLog/audit_log.service';
 import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
 import { RoleName } from 'src/shared/Types/roles.enum';
+import { MailService } from '../Mail/mail.service';
 
 @Injectable()
 export class StudyMaterialService {
@@ -21,6 +22,7 @@ export class StudyMaterialService {
     private readonly userRepository: UserRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly auditLogService: AuditLogService,
+    private readonly mailService: MailService,
   ) {}
 
   toResponseDto(m: StudyMaterial): StudyMaterialResponseDto {
@@ -97,6 +99,16 @@ export class StudyMaterialService {
       AuditEntityType.STUDY_MATERIAL,
       material.id,
     );
+
+    if (!isAdmin) {
+      await this.mailService.sendMaterialPendingNotification({
+        title: material.title,
+        uploaderFirstName: user.firstName,
+        uploaderLastName: user.lastName,
+        subjectName: (subject as any).name,
+      });
+    }
+
     return this.toResponseDto(material);
   }
 

@@ -6,9 +6,10 @@ import { SubjectModule } from '../Subject/subject.module';
 import { UserModule } from '../User/user.module';
 import { UploadsModule } from '../Uploads/uploads.module';
 import { AuditLogModule } from '../AuditLog/audit_log.module';
+import { MailModule } from '../Mail/mail.module';
 
 @Module({
-  imports: [SubjectModule, UserModule, UploadsModule, AuditLogModule],
+  imports: [SubjectModule, UserModule, UploadsModule, AuditLogModule, MailModule],
   providers: [StudyMaterialService, StudyMaterialRepository],
   controllers: [StudyMaterialController],
   exports: [StudyMaterialRepository],

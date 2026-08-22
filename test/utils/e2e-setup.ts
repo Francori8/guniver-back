@@ -11,10 +11,14 @@ import { University } from '../../src/modules/University/university.entity';
 import { Career } from '../../src/modules/Career/career.entity';
 import { Subject } from '../../src/modules/Subject/subject.entity';
 
-export async function createTestApp(): Promise<INestApplication> {
-  const moduleFixture: TestingModule = await Test.createTestingModule({
+export async function createTestApp(
+  configureModule?: (builder: ReturnType<typeof Test.createTestingModule>) => void,
+): Promise<INestApplication> {
+  const moduleBuilder = Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  });
+  configureModule?.(moduleBuilder);
+  const moduleFixture: TestingModule = await moduleBuilder.compile();
 
   const app = moduleFixture.createNestApplication();
   app.use(cookieParser());
