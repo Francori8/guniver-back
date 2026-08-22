@@ -2,13 +2,18 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import { EmailBuilder } from './email-builder';
+import { UserRepository } from '../User/user.repository';
+import { RoleName } from 'src/shared/Types/roles.enum';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private readonly resend: Resend;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly userRepository: UserRepository,
+  ) {
     const apiKey = this.configService.get('RESEND_API_KEY');
     if (!apiKey) {
       this.logger.warn(
@@ -18,7 +23,11 @@ export class MailService {
     this.resend = new Resend(apiKey || 're_dummy_key');
   }
 
-  private async send(to: string, subject: string, html: string): Promise<void> {
+  private async send(
+    to: string | string[],
+    subject: string,
+    html: string,
+  ): Promise<void> {
     const from = this.configService.get('EMAIL_FROM') || 'onboarding@resend.dev';
     const bcc = this.configService.get('RESEND_BCC');
 
@@ -34,20 +43,30 @@ export class MailService {
     }
   }
 
+  /**
+   * Todos los usuarios con rol ADMIN, para notificaciones que le
+   * corresponden a cualquiera de ellos (no a una única dirección fija).
+   */
+  private async getAdminEmails(): Promise<string[]> {
+    const admins = await this.userRepository.findByRoleName(RoleName.ADMIN);
+    return admins.map((admin) => admin.email);
+  }
+
+  private async sendToAdmins(subject: string, html: string): Promise<void> {
+    const adminEmails = await this.getAdminEmails();
+    if (adminEmails.length === 0) {
+      this.logger.warn('No hay usuarios ADMIN en la base, se omite el mail de aviso');
+      return;
+    }
+    await this.send(adminEmails, subject, html);
+  }
+
   async sendAccessRequestNotification(request: {
     firstName: string;
     lastName: string;
     email: string;
     message?: string;
   }): Promise<void> {
-    const adminEmail = this.configService.get('ADMIN_NOTIFICATION_EMAIL');
-    if (!adminEmail) {
-      this.logger.warn(
-        'ADMIN_NOTIFICATION_EMAIL no configurado, se omite el mail de aviso',
-      );
-      return;
-    }
-
     const frontendUrl = this.configService.get('FRONTEND_URL');
 
     const builder = new EmailBuilder()
@@ -64,7 +83,31 @@ export class MailService {
 
     const { subject, html } = builder.build();
 
-    await this.send(adminEmail, subject, html);
+    await this.sendToAdmins(subject, html);
+  }
+
+  async sendMaterialPendingNotification(material: {
+    title: string;
+    uploaderFirstName: string;
+    uploaderLastName: string;
+    subjectName: string;
+  }): Promise<void> {
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+
+    const builder = new EmailBuilder()
+      .subject('Nuevo material pendiente de revisión')
+      .heading('Un estudiante subió un apunte')
+      .paragraph(
+        `<strong>${material.uploaderFirstName} ${material.uploaderLastName}</strong> subió "${material.title}" para ${material.subjectName}, pendiente de aprobación.`,
+      );
+
+    if (frontendUrl) {
+      builder.button('Revisar materiales', `${frontendUrl}/admin/study-material-requests`);
+    }
+
+    const { subject, html } = builder.build();
+
+    await this.sendToAdmins(subject, html);
   }
 
   async sendActivationInvite(

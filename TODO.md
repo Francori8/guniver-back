@@ -127,6 +127,27 @@ Habilitar que un estudiante suba apuntes propios implica:
 - [ ] Pendiente, no bloqueante: extender esta cobertura a `Uploads` y
       `Profile` (siguen sin tests e2e, ver "Riesgo medio" arriba).
 
+**Notificación por mail a admins — extendida y corregida (2026-08-22).**
+Motivación: en la primera prueba en producción no llegaba mail al subir un
+material (no existía ese aviso todavía), y de paso se detectó que
+`sendAccessRequestNotification` solo avisaba a una única dirección fija
+(`ADMIN_NOTIFICATION_EMAIL`), no a todos los admins reales.
+- ✅ `MailService` ahora consulta todos los `User` con rol `ADMIN`
+  (`UserRepository.findByRoleName`) y les manda a todos juntos (Resend
+  soporta `to: string[]`), en vez de depender de una env var fija.
+  `sendAccessRequestNotification` migrado a este mismo mecanismo.
+- ✅ Nuevo `sendMaterialPendingNotification`, disparado desde
+  `StudyMaterialService.create()` solo cuando el uploader no es admin (no
+  molesta por cada material que sube un admin normalmente).
+- ✅ `MailModule` ahora importa `UserModule` (sin ciclo, confirmado).
+- **Importante para producción:** `ADMIN_NOTIFICATION_EMAIL` ya no se usa en
+  el código — no hace falta borrarla de Railway, pero el mail ahora depende
+  de que existan usuarios reales con rol `ADMIN` en la base de producción
+  (no de esa env var).
+- Verificado con la suite e2e completa (10 suites, 68 tests) — el mail se
+  intenta enviar a la lista de admins correctamente (el error de Resend en
+  test es solo por la API key dummy del entorno, esperado).
+
 ## 2. Vincular universidades
 
 Repasar qué tan conectado está `University` al resto del dominio — hoy parece que
