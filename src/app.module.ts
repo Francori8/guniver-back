@@ -20,6 +20,10 @@ import { UploadsModule } from './modules/Uploads/uploads.module';
 import { PublicModule } from './modules/Public/public.module';
 import { CareerRequestModule } from './modules/CareerRequest/career_request.module';
 import { AuditLogModule } from './modules/AuditLog/audit_log.module';
+import { StudyPlanModuleModule } from './modules/StudyPlanModule/study_plan_module.module';
+import { CareerSubjectModule } from './modules/CareerSubject/career_subject.module';
+import { RequirementModule } from './modules/Requirement/requirement.module';
+import { CareerTreeModule } from './modules/CareerTree/career_tree.module';
 
 @Module({
   imports: [
@@ -44,6 +48,10 @@ import { AuditLogModule } from './modules/AuditLog/audit_log.module';
     PublicModule,
     CareerRequestModule,
     AuditLogModule,
+    StudyPlanModuleModule,
+    CareerSubjectModule,
+    RequirementModule,
+    CareerTreeModule,
   ],
   providers: [
     {

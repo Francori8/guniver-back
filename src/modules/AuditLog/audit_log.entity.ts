@@ -18,6 +18,8 @@ export enum AuditEntityType {
   STUDY_MATERIAL = 'StudyMaterial',
   ACCESS_REQUEST = 'AccessRequest',
   CAREER_REQUEST = 'CareerRequest',
+  STUDY_PLAN_MODULE = 'StudyPlanModule',
+  CAREER_SUBJECT = 'CareerSubject',
 }
 
 @Entity()

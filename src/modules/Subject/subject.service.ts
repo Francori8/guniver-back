@@ -9,16 +9,25 @@ import { UpdateSubjectDto } from './dto/update_subject.dto';
 import { PaginatedResult } from 'src/shared/Types/paginated-result';
 import { AuditLogService } from '../AuditLog/audit_log.service';
 import { AuditAction, AuditEntityType } from '../AuditLog/audit_log.entity';
+import { CareerSubjectRepository } from '../CareerSubject/career_subject.repository';
+import { RequirementGroupRepository } from '../Requirement/requirement_group.repository';
+import { RequirementItemRepository } from '../Requirement/requirement_item.repository';
 
 @Injectable()
 export class SubjectService {
   constructor(
     private readonly subjectRepository: SubjectRepository,
     private readonly careerRepository: CareerRepository,
+    private readonly careerSubjectRepository: CareerSubjectRepository,
+    private readonly requirementGroupRepository: RequirementGroupRepository,
+    private readonly requirementItemRepository: RequirementItemRepository,
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  toResponseDto(subject: Subject): SubjectResponseDto {
+  async toResponseDto(subject: Subject): Promise<SubjectResponseDto> {
+    const links = await this.subjectRepository.findCareerLinksBySubject(
+      subject.id,
+    );
     return new SubjectResponseDto({
       id: subject.id,
       name: subject.name,
@@ -26,9 +35,7 @@ export class SubjectService {
       code: subject.code,
       credits: subject.credits,
       hoursPerWeek: subject.hoursPerWeek,
-      careers: subject.careers?.getItems
-        ? subject.careers.getItems().map((c) => ({ id: c.id, name: c.name }))
-        : undefined,
+      careers: links.map((l) => ({ id: l.career.id, name: l.career.name })),
       createdAt: subject.createdAt,
       updatedAt: subject.updatedAt,
     });
@@ -52,10 +59,12 @@ export class SubjectService {
       if (!career) {
         throw new NotFoundException(`Career with ID ${careerId} not found`);
       }
-      // Career es el dueño de la relación M2M, hay que agregar desde ese lado
-      // para que MikroORM persista la tabla intermedia correctamente.
-      career.subjects.add(subject);
-      await this.careerRepository.save(career);
+      const careerSubject = this.careerSubjectRepository.create({
+        career,
+        subject,
+        credits: subject.credits,
+      } as any);
+      await this.careerSubjectRepository.save(careerSubject);
     }
 
     await this.auditLogService.log(
@@ -73,22 +82,15 @@ export class SubjectService {
     careerId?: number;
     q?: string;
   }): Promise<SubjectResponseDto[]> {
+    let subjects: Subject[];
     if (filters?.careerId) {
-      const subjects = await this.subjectRepository.findByCareer(
-        filters.careerId,
-      );
-      return subjects.map((s) => this.toResponseDto(s));
+      subjects = await this.subjectRepository.findByCareer(filters.careerId);
+    } else if (filters?.q) {
+      subjects = await this.subjectRepository.searchByName(filters.q);
+    } else {
+      subjects = await this.subjectRepository.findAll();
     }
-
-    if (filters?.q) {
-      const subjects = await this.subjectRepository.searchByName(filters.q);
-      return subjects.map((s) => this.toResponseDto(s));
-    }
-
-    const subjects = await this.subjectRepository.findAll({
-      populate: ['careers'],
-    });
-    return subjects.map((s) => this.toResponseDto(s));
+    return Promise.all(subjects.map((s) => this.toResponseDto(s)));
   }
 
   async findAllPaginated(
@@ -102,7 +104,7 @@ export class SubjectService {
       filters,
     );
     return {
-      data: data.map((s) => this.toResponseDto(s)),
+      data: await Promise.all(data.map((s) => this.toResponseDto(s))),
       total,
       page,
       limit,
@@ -121,9 +123,7 @@ export class SubjectService {
     updates: UpdateSubjectDto,
     actorUserId: number,
   ): Promise<SubjectResponseDto> {
-    const subject = await this.subjectRepository.findOne(id, {
-      populate: ['careers'],
-    });
+    const subject = await this.subjectRepository.findOne(id);
     if (!subject)
       throw new NotFoundException(`Subject with ID ${id} not found`);
 
@@ -131,14 +131,25 @@ export class SubjectService {
 
     if (careerIds) {
       const desiredIds = new Set(careerIds);
-      const currentCareers = subject.careers.getItems();
-      const currentIds = new Set(currentCareers.map((c) => c.id));
+      const currentLinks = await this.subjectRepository.findCareerLinksBySubject(
+        id,
+      );
+      const currentIds = new Set(currentLinks.map((l) => l.career.id));
 
-      for (const career of currentCareers) {
-        if (!desiredIds.has(career.id)) {
-          await career.subjects.init();
-          career.subjects.remove(subject);
-          await this.careerRepository.save(career);
+      for (const link of currentLinks) {
+        if (!desiredIds.has(link.career.id)) {
+          const ownGroupCount =
+            await this.requirementGroupRepository.countByCareerSubject(link.id);
+          const targetItemCount =
+            await this.requirementItemRepository.countByTargetCareerSubject(
+              link.id,
+            );
+          if (ownGroupCount > 0 || targetItemCount > 0) {
+            throw new BadRequestException(
+              `No se puede quitar la materia de la carrera "${link.career.name}": tiene requisitos de cursada/aprobación cargados (propios o de otra materia que la referencia). Eliminalos primero.`,
+            );
+          }
+          await this.careerSubjectRepository.removeAndFlush(link);
         }
       }
 
@@ -148,8 +159,12 @@ export class SubjectService {
           if (!career) {
             throw new NotFoundException(`Career with ID ${careerId} not found`);
           }
-          career.subjects.add(subject);
-          await this.careerRepository.save(career);
+          const careerSubject = this.careerSubjectRepository.create({
+            career,
+            subject,
+            credits: subject.credits,
+          } as any);
+          await this.careerSubjectRepository.save(careerSubject);
         }
       }
     }
@@ -180,6 +195,23 @@ export class SubjectService {
       throw new BadRequestException(
         `No se puede eliminar: esta materia todavía tiene ${materialCount} material(es) asociado(s) (incluida la papelera). Movelos o eliminalos primero desde Materiales.`,
       );
+    }
+
+    const links = await this.subjectRepository.findCareerLinksBySubject(id);
+    for (const link of links) {
+      const ownGroupCount = await this.requirementGroupRepository.countByCareerSubject(
+        link.id,
+      );
+      const targetItemCount =
+        await this.requirementItemRepository.countByTargetCareerSubject(link.id);
+      if (ownGroupCount > 0 || targetItemCount > 0) {
+        throw new BadRequestException(
+          `No se puede eliminar: esta materia tiene requisitos de cursada/aprobación cargados (propios o de otra materia que la referencia) en la carrera "${link.career.name}". Eliminalos primero.`,
+        );
+      }
+    }
+    for (const link of links) {
+      await this.careerSubjectRepository.removeAndFlush(link);
     }
 
     await this.subjectRepository.removeAndFlush(subject);
