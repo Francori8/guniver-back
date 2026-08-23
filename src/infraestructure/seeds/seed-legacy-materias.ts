@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vm from 'vm';
 import { MikroORM } from '@mikro-orm/postgresql';
+import { CareerSubject } from '../../modules/CareerSubject/career_subject.entity';
 import mikroOrmConfig from '../../../mikro-orm.config';
 import { Subject } from '../../modules/Subject/subject.entity';
 import { Career } from '../../modules/Career/career.entity';
@@ -105,10 +106,17 @@ async function main() {
         createdSubjects++;
       }
 
-      await em.populate(career, ['subjects']);
-      if (!career.subjects.contains(subject)) {
-        career.subjects.add(subject);
-        await em.persistAndFlush(career);
+      const existingLink = await em.findOne(CareerSubject, {
+        career,
+        subject,
+      });
+      if (!existingLink) {
+        const careerSubject = em.create(CareerSubject, {
+          career,
+          subject,
+          credits: subject.credits,
+        } as any);
+        await em.persistAndFlush(careerSubject);
       }
 
       const groups: { items: LegacyItem[]; type: MaterialType }[] = [

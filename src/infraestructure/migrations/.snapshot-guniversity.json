@@ -378,6 +378,131 @@
     },
     {
       "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "career_id": {
+          "name": "career_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "order": {
+          "name": "order",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "0",
+          "mappedType": "integer"
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "'obligatorio'",
+          "enumItems": [
+            "obligatorio",
+            "optativo_por_creditos"
+          ],
+          "mappedType": "enum"
+        },
+        "required_credits": {
+          "name": "required_credits",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "study_plan_module",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "study_plan_module_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "study_plan_module_career_id_foreign": {
+          "constraintName": "study_plan_module_career_id_foreign",
+          "columnNames": [
+            "career_id"
+          ],
+          "localTableName": "public.study_plan_module",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.career",
+          "createForeignKeyConstraint": true,
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
         "career_id": {
           "name": "career_id",
           "type": "int",
@@ -395,18 +520,67 @@
           "primary": false,
           "nullable": false,
           "mappedType": "integer"
+        },
+        "module_id": {
+          "name": "module_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        },
+        "credits": {
+          "name": "credits",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "0",
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
         }
       },
-      "name": "career_subjects",
+      "name": "career_subject",
       "schema": "public",
       "indexes": [
         {
-          "keyName": "career_subjects_pkey",
+          "keyName": "career_subject_career_id_subject_id_unique",
           "columnNames": [
             "career_id",
             "subject_id"
           ],
           "composite": true,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "career_subject_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
           "constraint": true,
           "primary": true,
           "unique": true
@@ -414,32 +588,252 @@
       ],
       "checks": [],
       "foreignKeys": {
-        "career_subjects_career_id_foreign": {
-          "constraintName": "career_subjects_career_id_foreign",
+        "career_subject_career_id_foreign": {
+          "constraintName": "career_subject_career_id_foreign",
           "columnNames": [
             "career_id"
           ],
-          "localTableName": "public.career_subjects",
+          "localTableName": "public.career_subject",
           "referencedColumnNames": [
             "id"
           ],
           "referencedTableName": "public.career",
           "createForeignKeyConstraint": true,
-          "deleteRule": "cascade",
           "updateRule": "cascade"
         },
-        "career_subjects_subject_id_foreign": {
-          "constraintName": "career_subjects_subject_id_foreign",
+        "career_subject_subject_id_foreign": {
+          "constraintName": "career_subject_subject_id_foreign",
           "columnNames": [
             "subject_id"
           ],
-          "localTableName": "public.career_subjects",
+          "localTableName": "public.career_subject",
           "referencedColumnNames": [
             "id"
           ],
           "referencedTableName": "public.subject",
           "createForeignKeyConstraint": true,
-          "deleteRule": "cascade",
+          "updateRule": "cascade"
+        },
+        "career_subject_module_id_foreign": {
+          "constraintName": "career_subject_module_id_foreign",
+          "columnNames": [
+            "module_id"
+          ],
+          "localTableName": "public.career_subject",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.study_plan_module",
+          "createForeignKeyConstraint": true,
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "career_subject_id": {
+          "name": "career_subject_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "enumItems": [
+            "cursar",
+            "aprobar"
+          ],
+          "mappedType": "enum"
+        },
+        "option_number": {
+          "name": "option_number",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "1",
+          "mappedType": "integer"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "requirement_group",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "requirement_group_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "requirement_group_career_subject_id_foreign": {
+          "constraintName": "requirement_group_career_subject_id_foreign",
+          "columnNames": [
+            "career_subject_id"
+          ],
+          "localTableName": "public.requirement_group",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.career_subject",
+          "createForeignKeyConstraint": true,
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "requirement_group_id": {
+          "name": "requirement_group_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "enumItems": [
+            "subject_approved",
+            "module_credits",
+            "module_complete"
+          ],
+          "mappedType": "enum"
+        },
+        "target_career_subject_id": {
+          "name": "target_career_subject_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        },
+        "target_module_id": {
+          "name": "target_module_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        },
+        "required_credits": {
+          "name": "required_credits",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        }
+      },
+      "name": "requirement_item",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "requirement_item_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "requirement_item_requirement_group_id_foreign": {
+          "constraintName": "requirement_item_requirement_group_id_foreign",
+          "columnNames": [
+            "requirement_group_id"
+          ],
+          "localTableName": "public.requirement_item",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.requirement_group",
+          "createForeignKeyConstraint": true,
+          "updateRule": "cascade"
+        },
+        "requirement_item_target_career_subject_id_foreign": {
+          "constraintName": "requirement_item_target_career_subject_id_foreign",
+          "columnNames": [
+            "target_career_subject_id"
+          ],
+          "localTableName": "public.requirement_item",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.career_subject",
+          "createForeignKeyConstraint": true,
+          "deleteRule": "set null",
+          "updateRule": "cascade"
+        },
+        "requirement_item_target_module_id_foreign": {
+          "constraintName": "requirement_item_target_module_id_foreign",
+          "columnNames": [
+            "target_module_id"
+          ],
+          "localTableName": "public.requirement_item",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.study_plan_module",
+          "createForeignKeyConstraint": true,
+          "deleteRule": "set null",
           "updateRule": "cascade"
         }
       },
@@ -1327,7 +1721,9 @@
             "Subject",
             "StudyMaterial",
             "AccessRequest",
-            "CareerRequest"
+            "CareerRequest",
+            "StudyPlanModule",
+            "CareerSubject"
           ],
           "mappedType": "enum"
         },

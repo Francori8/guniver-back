@@ -10,6 +10,7 @@ import { User } from '../../src/modules/User/user.entity';
 import { University } from '../../src/modules/University/university.entity';
 import { Career } from '../../src/modules/Career/career.entity';
 import { Subject } from '../../src/modules/Subject/subject.entity';
+import { CareerSubject } from '../../src/modules/CareerSubject/career_subject.entity';
 
 export async function createTestApp(
   configureModule?: (builder: ReturnType<typeof Test.createTestingModule>) => void,
@@ -106,11 +107,13 @@ export async function seedSubject(
     credits: 0,
     hoursPerWeek: 0,
   } as any);
-  const career = await em.findOneOrFail(Career, { id: params.career.id }, {
-    populate: ['subjects'],
-  });
-  career.subjects.add(subject);
-  await em.persistAndFlush(career);
+  const career = await em.findOneOrFail(Career, { id: params.career.id });
+  const careerSubject = em.create(CareerSubject, {
+    career,
+    subject,
+    credits: 0,
+  } as any);
+  await em.persistAndFlush([subject, careerSubject]);
   return subject;
 }
 

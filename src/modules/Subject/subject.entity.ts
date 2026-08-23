@@ -1,14 +1,5 @@
 // src/modules/Subject/entity/subject.entity.ts
-import {
-  Entity,
-  PrimaryKey,
-  Property,
-  ManyToOne,
-  ManyToMany,
-  Collection,
-} from '@mikro-orm/core';
-
-import { Career } from '../Career/career.entity';
+import { Entity, PrimaryKey, Property } from '@mikro-orm/core';
 
 @Entity()
 export class Subject {
@@ -23,9 +14,6 @@ export class Subject {
 
   @Property({ nullable: true })
   code?: string; // Ej: "IS-101"
-
-  @ManyToMany(() => Career, (career) => career.subjects)
-  careers = new Collection<Career>(this);
 
   @Property()
   credits: number = 0;
