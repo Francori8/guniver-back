@@ -86,6 +86,31 @@ export class MailService {
     await this.sendToAdmins(subject, html);
   }
 
+  async sendCareerRequestNotification(request: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    careerName: string;
+    universityName: string;
+  }): Promise<void> {
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+
+    const builder = new EmailBuilder()
+      .subject('Nueva solicitud de carrera')
+      .heading('Un alumno pidió sumar una carrera')
+      .paragraph(
+        `<strong>${request.firstName} ${request.lastName}</strong> (${request.email}) pidió sumar la carrera <strong>${request.careerName}</strong> (${request.universityName}).`,
+      );
+
+    if (frontendUrl) {
+      builder.button('Ver solicitudes', `${frontendUrl}/admin/career-requests`);
+    }
+
+    const { subject, html } = builder.build();
+
+    await this.sendToAdmins(subject, html);
+  }
+
   async sendMaterialPendingNotification(material: {
     title: string;
     uploaderFirstName: string;
