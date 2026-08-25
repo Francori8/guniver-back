@@ -5,6 +5,7 @@ import { UniversityModule } from '../University/university.module';
 import { CareerModule } from '../Career/career.module';
 import { ProfileModule } from '../Profile/profile.module';
 import { AuditLogModule } from '../AuditLog/audit_log.module';
+import { MailModule } from '../Mail/mail.module';
 
 import { CreateCareerRequestController } from './use-cases/create-career-request/create-career-request.controller';
 import { CreateCareerRequestService } from './use-cases/create-career-request/create-career-request.service';
@@ -16,7 +17,7 @@ import { RejectCareerRequestController } from './use-cases/reject-career-request
 import { RejectCareerRequestService } from './use-cases/reject-career-request/reject-career-request.service';
 
 @Module({
-  imports: [UserModule, UniversityModule, CareerModule, ProfileModule, AuditLogModule],
+  imports: [UserModule, UniversityModule, CareerModule, ProfileModule, AuditLogModule, MailModule],
   controllers: [
     CreateCareerRequestController,
     ListCareerRequestsController,

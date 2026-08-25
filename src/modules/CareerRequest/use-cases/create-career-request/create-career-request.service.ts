@@ -6,6 +6,7 @@ import { UserRepository } from 'src/modules/User/user.repository';
 import { UniversityRepository } from 'src/modules/University/university.repository';
 import { CareerRepository } from 'src/modules/Career/career.repository';
 import { StudentProfileRepository } from 'src/modules/Profile/repository/student_profile.repository';
+import { MailService } from 'src/modules/Mail/mail.service';
 
 @Injectable()
 export class CreateCareerRequestService {
@@ -15,6 +16,7 @@ export class CreateCareerRequestService {
     private readonly universityRepository: UniversityRepository,
     private readonly careerRepository: CareerRepository,
     private readonly studentProfileRepository: StudentProfileRepository,
+    private readonly mailService: MailService,
   ) {}
 
   async execute(userId: number, dto: CreateCareerRequestDto) {
@@ -53,6 +55,14 @@ export class CreateCareerRequestService {
       status: CareerRequestStatus.PENDING,
     });
     await this.careerRequestRepository.save(careerRequest);
+
+    await this.mailService.sendCareerRequestNotification({
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      careerName: career.name,
+      universityName: university.name,
+    });
 
     return { id: careerRequest.id, status: careerRequest.status };
   }
