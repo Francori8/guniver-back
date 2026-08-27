@@ -23,6 +23,7 @@ export class CareerTreeSubjectDto {
   subjectId: number;
   name: string;
   credits: number;
+  year?: number;
   module?: { id: number; name: string };
   requirements: {
     cursar: RequirementRuleDto[];

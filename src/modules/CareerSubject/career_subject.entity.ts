@@ -21,6 +21,9 @@ export class CareerSubject {
   @Property()
   credits: number = 0;
 
+  @Property({ nullable: true })
+  year?: number;
+
   @Property()
   createdAt?: Date = new Date();
 

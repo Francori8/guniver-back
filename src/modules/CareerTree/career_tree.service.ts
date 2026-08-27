@@ -41,6 +41,7 @@ export class CareerTreeService {
       subjectId: careerSubject.subject.id,
       name: careerSubject.subject.name,
       credits: careerSubject.credits,
+      year: careerSubject.year,
       module: careerSubject.module
         ? { id: careerSubject.module.id, name: careerSubject.module.name }
         : undefined,
