@@ -3,9 +3,14 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { UnexpectedErrorFilter } from './common/filters/unexpected-error.filter';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Aumentar límite del body (por defecto 100kb) para imports grandes de HTML/JSON
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // Configurar CORS para permitir requests desde el frontend
   const allowedOrigins = [
