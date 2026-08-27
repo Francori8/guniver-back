@@ -24,6 +24,12 @@ import { StudyPlanModuleModule } from './modules/StudyPlanModule/study_plan_modu
 import { CareerSubjectModule } from './modules/CareerSubject/career_subject.module';
 import { RequirementModule } from './modules/Requirement/requirement.module';
 import { CareerTreeModule } from './modules/CareerTree/career_tree.module';
+import { TermModule } from './modules/Term/term.module';
+import { SubjectProgressModule } from './modules/SubjectProgress/subject_progress.module';
+import { StudentProgressModule } from './modules/StudentProgress/student_progress.module';
+import { AcademicHistoryModule } from './modules/AcademicHistory/academic_history.module';
+import { StudyPlanImportModule } from './modules/StudyPlanImport/study_plan_import.module';
+import { RequirementImportModule } from './modules/RequirementImport/requirement_import.module';
 
 @Module({
   imports: [
@@ -52,6 +58,12 @@ import { CareerTreeModule } from './modules/CareerTree/career_tree.module';
     CareerSubjectModule,
     RequirementModule,
     CareerTreeModule,
+    TermModule,
+    SubjectProgressModule,
+    StudentProgressModule,
+    AcademicHistoryModule,
+    StudyPlanImportModule,
+    RequirementImportModule,
   ],
   providers: [
     {

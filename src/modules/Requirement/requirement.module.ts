@@ -13,6 +13,6 @@ import { AuditLogModule } from '../AuditLog/audit_log.module';
   imports: [CareerSubjectModule, StudyPlanModuleModule, AuditLogModule],
   providers: [RequirementService, RequirementGroupRepository, RequirementItemRepository],
   controllers: [RequirementController],
-  exports: [RequirementGroupRepository, RequirementItemRepository],
+  exports: [RequirementService, RequirementGroupRepository, RequirementItemRepository],
 })
 export class RequirementModule {}
