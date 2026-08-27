@@ -28,4 +28,14 @@ export class StudentProfileRepository extends BaseRepository<StudentProfile> {
       { populate: ['user', 'career'] },
     );
   }
+
+  async findByUserAndCareer(
+    userId: number,
+    careerId: number,
+  ): Promise<StudentProfile | null> {
+    return this.findOne(
+      { user: userId, career: careerId },
+      { populate: ['university', 'career'] },
+    );
+  }
 }

@@ -12,5 +12,6 @@ import { RequirementModule } from '../Requirement/requirement.module';
   imports: [CareerModule, StudyPlanModuleModule, CareerSubjectModule, RequirementModule],
   providers: [CareerTreeService],
   controllers: [CareerTreeController],
+  exports: [CareerTreeService],
 })
 export class CareerTreeModule {}

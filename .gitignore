@@ -54,3 +54,9 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dumps de base de datos (pueden contener datos reales de usuarios, nunca commitear)
+*.dump
+*.sql
+
+.next/

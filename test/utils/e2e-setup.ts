@@ -11,6 +11,7 @@ import { University } from '../../src/modules/University/university.entity';
 import { Career } from '../../src/modules/Career/career.entity';
 import { Subject } from '../../src/modules/Subject/subject.entity';
 import { CareerSubject } from '../../src/modules/CareerSubject/career_subject.entity';
+import { StudentProfile } from '../../src/modules/Profile/entity/student_profile.entity';
 
 export async function createTestApp(
   configureModule?: (builder: ReturnType<typeof Test.createTestingModule>) => void,
@@ -115,6 +116,21 @@ export async function seedSubject(
   } as any);
   await em.persistAndFlush([subject, careerSubject]);
   return subject;
+}
+
+export async function seedStudentProfile(
+  app: INestApplication,
+  params: { user: User; university: University; career: Career; enrollmentDate?: Date },
+): Promise<StudentProfile> {
+  const em = forkEm(app);
+  const profile = em.create(StudentProfile, {
+    user: params.user,
+    university: params.university,
+    career: params.career,
+    enrollmentDate: params.enrollmentDate ?? new Date('2023-03-01'),
+  } as any);
+  await em.persistAndFlush(profile);
+  return profile;
 }
 
 export async function findUserByEmail(

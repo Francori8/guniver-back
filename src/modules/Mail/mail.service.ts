@@ -31,16 +31,54 @@ export class MailService {
     const from = this.configService.get('EMAIL_FROM') || 'onboarding@resend.dev';
     const bcc = this.configService.get('RESEND_BCC');
 
-    const { error } = await this.resend.emails.send({
-      from,
+    const { to: finalTo, subject: finalSubject } = this.redirectIfNotProduction(
       to,
       subject,
+    );
+
+    const { error } = await this.resend.emails.send({
+      from,
+      to: finalTo,
+      subject: finalSubject,
       html,
       ...(bcc ? { bcc } : {}),
     });
     if (error) {
-      this.logger.error(`Error enviando mail a ${to}: ${error.message}`);
+      this.logger.error(`Error enviando mail a ${finalTo}: ${error.message}`);
     }
+  }
+
+  /**
+   * Fuera de producción (dev local, o cualquier entorno con datos reales
+   * restaurados desde un dump), nunca se manda un mail a un destinatario real
+   * — todo se redirige a ADMIN_NOTIFICATION_EMAIL para no spamear usuarios/admins
+   * reales de la base de producción con notificaciones de pruebas locales.
+   */
+  private redirectIfNotProduction(
+    to: string | string[],
+    subject: string,
+  ): { to: string | string[]; subject: string } {
+    const nodeEnv = this.configService.get('NODE_ENV');
+    if (nodeEnv === 'production') {
+      return { to, subject };
+    }
+
+    const redirectTo = this.configService.get('ADMIN_NOTIFICATION_EMAIL');
+    if (!redirectTo) {
+      this.logger.warn(
+        `NODE_ENV=${nodeEnv ?? 'undefined'}: se debería redirigir el mail, pero ADMIN_NOTIFICATION_EMAIL no está configurado. Se envía al destinatario real igual.`,
+      );
+      return { to, subject };
+    }
+
+    const originalTo = Array.isArray(to) ? to.join(', ') : to;
+    this.logger.warn(
+      `NODE_ENV=${nodeEnv}: mail redirigido de [${originalTo}] a ${redirectTo}`,
+    );
+    return {
+      to: redirectTo,
+      subject: `[${nodeEnv ?? 'no-prod'}] ${subject} (originalmente a: ${originalTo})`,
+    };
   }
 
   /**
