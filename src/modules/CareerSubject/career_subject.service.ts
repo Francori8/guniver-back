@@ -33,6 +33,7 @@ export class CareerSubjectService {
         ? { id: careerSubject.module.id, name: careerSubject.module.name }
         : undefined,
       credits: careerSubject.credits,
+      year: careerSubject.year,
       createdAt: careerSubject.createdAt,
       updatedAt: careerSubject.updatedAt,
     });
@@ -99,6 +100,10 @@ export class CareerSubjectService {
 
     if (updates.credits !== undefined) {
       row.credits = updates.credits;
+    }
+
+    if (updates.year !== undefined) {
+      row.year = updates.year === null ? undefined : updates.year;
     }
 
     await this.careerSubjectRepository.save(row);

@@ -4,6 +4,7 @@ export class CareerSubjectResponseDto {
   subject: { id: number; name: string };
   module?: { id: number; name: string };
   credits: number;
+  year?: number;
   createdAt?: Date;
   updatedAt?: Date;
 
