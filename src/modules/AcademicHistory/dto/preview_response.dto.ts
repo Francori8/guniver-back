@@ -42,6 +42,14 @@ export class PreviewResponseDto {
   discarded: PreviewDiscardedDto[];
   unparsedLines: string[];
 
+  // Carrera detectada desde la línea "Propuesta: ..." del PDF. detectedCareerId
+  // viene definido solo si esa carrera matcheó con uno de los perfiles del usuario
+  // (en ese caso el matching de materias se restringió a esa sola carrera); si
+  // detectedCareerName está pero detectedCareerId no, el nombre no coincidió con
+  // ninguno de sus perfiles y conviene avisarlo en el frontend.
+  detectedCareerName?: string;
+  detectedCareerId?: number;
+
   constructor(partial: Partial<PreviewResponseDto>) {
     Object.assign(this, partial);
   }
