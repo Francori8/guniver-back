@@ -7,6 +7,9 @@ export interface ParsedRow {
   date: Date;
   type: string;
   grade?: number;
+  // Código no numérico en la columna "Nota" (ej. "PA" = Pendiente de Aprobación,
+  // "AU" = Ausente) — el SIU lo usa cuando todavía no hay nota de examen/promoción.
+  gradeCode?: string;
   result?: string;
 }
 
@@ -42,8 +45,11 @@ export interface InCourseSubject {
 
 // Ej: "Análisis Matemático I (00054) 10/07/2025 Regularidad 10 Aprobado"
 // Ej: "Algoritmos (01307) 10/08/2026 En curso"
+// Ej: "Lógica y Programación (01302) 19/12/2024 Regularidad PA Aprobado" — el SIU usa
+// "PA" (Pendiente de Aprobación) en vez de un número cuando la regularidad todavía no
+// tiene nota numérica de examen/promoción asociada.
 const ROW_REGEX =
-  /^(.+?)\s*\((\w+)\)\s+(\d{2}\/\d{2}\/\d{4})\s+([A-Za-zÁÉÍÓÚáéíóúñÑ ]+?)(?:\s+(\d+(?:\.\d+)?))?(?:\s+(Aprobado|Reprobado|Promocionado|Ausente))?$/;
+  /^(.+?)\s*\((\w+)\)\s+(\d{2}\/\d{2}\/\d{4})\s+([A-Za-zÁÉÍÓÚáéíóúñÑ ]+?)(?:\s+(\d+(?:\.\d+)?|PA|AU))?(?:\s+(Aprobado|Reprobado|Promocionado|Ausente))?$/;
 
 const HEADER_LINE = /^Actividad\s+Fecha\s+Tipo\s+Nota\s+Resultado$/i;
 
@@ -74,13 +80,15 @@ export function parseAcademicHistoryText(text: string): {
     }
 
     const [, subjectName, siuCode, dateStr, type, gradeStr, result] = match;
+    const isNumericGrade = gradeStr !== undefined && /^\d+(\.\d+)?$/.test(gradeStr);
     rows.push({
       raw: line,
       subjectName: subjectName.trim(),
       siuCode: siuCode.trim(),
       date: parseDate(dateStr),
       type: type.trim(),
-      grade: gradeStr ? Number(gradeStr) : undefined,
+      grade: isNumericGrade ? Number(gradeStr) : undefined,
+      gradeCode: gradeStr && !isNumericGrade ? gradeStr : undefined,
       result: result?.trim(),
     });
   }
@@ -88,10 +96,37 @@ export function parseAcademicHistoryText(text: string): {
   return { rows, unparsedLines };
 }
 
+const PROPUESTA_LINE = /^Propuesta:\s*(.+?)\s*$/i;
+
 /**
- * Agrupa filas por (código SIU, fecha de la fila Regularidad) = "intento". Filas de
- * un mismo intento (Regularidad + Promocion/Examen del mismo día) se agrupan juntas;
- * filas "En curso" quedan en su propio grupo.
+ * Extrae el nombre de la carrera desde la línea "Propuesta: <carrera>" que el SIU
+ * imprime en el encabezado de cada página del historial académico. Sirve para
+ * detectar automáticamente a qué perfil de estudiante (carrera) corresponde el PDF
+ * importado, en vez de que el usuario tenga que elegirla a mano de antemano.
+ */
+export function extractCareerName(text: string): string | undefined {
+  const lines = text.split('\n').map((l) => l.replace(/\s+/g, ' ').trim());
+  for (const line of lines) {
+    const match = line.match(PROPUESTA_LINE);
+    if (match) return match[1].trim();
+  }
+  return undefined;
+}
+
+/**
+ * Agrupa filas por (código SIU, fecha de la fila Regularidad) = "intento". Cada
+ * Regularidad define un intento; las filas de cierre (Promocion/Examen) se le asignan
+ * si son de la misma fecha O DE UNA FECHA POSTERIOR — el SIU suele rendir el examen
+ * final de una regularidad meses o años después (mesa de febrero, por ejemplo), no
+ * necesariamente el mismo día. Cuando una materia tiene varias Regularidades
+ * (recursada), cada fila de cierre se asigna a la Regularidad más cercana en el
+ * tiempo (la última que sea <= su fecha), para no mezclar intentos distintos.
+ *
+ * Materias reconocidas por "Equivalencia" (de otra carrera/institución) no pasan
+ * nunca por una Regularidad — se agrupan aparte, como un intento sin regRow, usando
+ * la fecha de la primera fila de Equivalencia.
+ *
+ * Filas "En curso" quedan en su propio grupo aparte.
  */
 export function groupIntoAttempts(rows: ParsedRow[]): {
   attempts: ParsedAttempt[];
@@ -115,17 +150,52 @@ export function groupIntoAttempts(rows: ParsedRow[]): {
       inCourse.push({ siuCode, subjectName });
     }
 
-    const regularidadRows = subjectRows.filter((r) => /^regularidad/i.test(r.type));
+    const regularidadRows = subjectRows
+      .filter((r) => /^regularidad/i.test(r.type))
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+    const closingRows = subjectRows.filter(
+      (r) => !/^regularidad/i.test(r.type) && !/en curso/i.test(r.type),
+    );
+
+    if (regularidadRows.length === 0) {
+      // Sin Regularidad: materia reconocida por Equivalencia u otra vía directa.
+      // Se agrupan todas las filas de cierre como un único intento (no hay noción
+      // de "recursada" acá — es un único reconocimiento).
+      if (closingRows.length > 0) {
+        const sorted = [...closingRows].sort((a, b) => a.date.getTime() - b.date.getTime());
+        attempts.push({
+          siuCode,
+          subjectName,
+          regularidadDate: sorted[0].date,
+          rows: sorted,
+        });
+      }
+      continue;
+    }
+
+    const rowsByRegularidad = new Map<ParsedRow, ParsedRow[]>();
     for (const regRow of regularidadRows) {
-      // Todas las filas del mismo día que esta Regularidad (Promocion/Examen que la cierran)
-      const sameDayRows = subjectRows.filter(
-        (r) => r.date.getTime() === regRow.date.getTime(),
-      );
+      rowsByRegularidad.set(regRow, [regRow]);
+    }
+
+    for (const closingRow of closingRows) {
+      // La Regularidad más reciente que sea <= la fecha de este cierre — si el cierre
+      // es anterior a toda Regularidad conocida (dato inconsistente), se asigna a la
+      // primera igual para no perderlo en silencio.
+      let target = regularidadRows[0];
+      for (const regRow of regularidadRows) {
+        if (regRow.date.getTime() <= closingRow.date.getTime()) target = regRow;
+      }
+      if (!target) continue;
+      rowsByRegularidad.get(target)!.push(closingRow);
+    }
+
+    for (const regRow of regularidadRows) {
       attempts.push({
         siuCode,
         subjectName,
         regularidadDate: regRow.date,
-        rows: sameDayRows,
+        rows: rowsByRegularidad.get(regRow)!,
       });
     }
   }
@@ -139,12 +209,28 @@ export function groupIntoAttempts(rows: ParsedRow[]): {
  * => aprobada; solo Regularidad Aprobado => cursada; Regularidad Reprobado =>
  * desaprobada (se propone igual, para reflejar que hay que recursar); cualquier otra
  * combinación => needsReview, nunca se descarta en silencio.
+ *
+ * Intentos sin Regularidad (Equivalencia u otro reconocimiento directo, ver
+ * groupIntoAttempts) se resuelven aparte: cualquier fila con resultado
+ * Aprobado/Promocionado ya alcanza para marcar la materia como aprobada.
  */
 export function resolveAttemptStatus(
   attempt: ParsedAttempt,
 ): ResolvedAttempt | DiscardedAttempt {
   const regRow = attempt.rows.find((r) => /^regularidad/i.test(r.type));
   if (!regRow) {
+    const approvedRow = attempt.rows.find(
+      (r) => r.result === 'Aprobado' || r.result === 'Promocionado',
+    );
+    if (approvedRow) {
+      return {
+        siuCode: attempt.siuCode,
+        subjectName: attempt.subjectName,
+        regularidadDate: attempt.regularidadDate,
+        status: 'aprobada',
+        grade: approvedRow.grade,
+      };
+    }
     return {
       siuCode: attempt.siuCode,
       subjectName: attempt.subjectName,
@@ -253,7 +339,7 @@ export function inferTerm(date: Date): {
   return { year: year - 1, period: TermPeriod.SECOND, periodUncertain: true };
 }
 
-function normalizeName(name: string): string {
+export function normalizeName(name: string): string {
   return name
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '') // quita tildes

@@ -16,6 +16,8 @@ import {
   inferTerm,
   matchSubject,
   MatchableCareerSubject,
+  extractCareerName,
+  normalizeName,
 } from './academic_history.parser';
 import {
   PreviewResponseDto,
@@ -63,6 +65,20 @@ export class AcademicHistoryService {
     const resolved = attempts.map(resolveAttemptStatus);
     const { toImport, discarded } = pickCurrentAttemptPerSubject(resolved);
 
+    // El PDF trae "Propuesta: <carrera>" en el encabezado — si matchea con una única
+    // carrera entre los perfiles del usuario, se restringe el matching de materias a
+    // esa carrera sola (evita falsos cruces si dos carreras del usuario comparten
+    // nombres de materia) y se informa al frontend qué carrera se detectó. Si no
+    // matchea ninguna (o el texto no trae la línea), se sigue igual que antes con
+    // todas las carreras del usuario combinadas, sin bloquear el import.
+    const detectedCareerName = extractCareerName(textResult.text);
+    const detectedProfile = detectedCareerName
+      ? studentProfiles.find(
+          (p) => normalizeName(p.career.name) === normalizeName(detectedCareerName),
+        )
+      : undefined;
+    const profilesToUse = detectedProfile ? [detectedProfile] : studentProfiles;
+
     // candidatos de todas las carreras del usuario, combinados para el matching
     const candidates: (MatchableCareerSubject & {
       careerId: number;
@@ -70,7 +86,7 @@ export class AcademicHistoryService {
       subjectId: number;
     })[] = [];
     const existingTermsByProfile = new Map<number, Awaited<ReturnType<TermRepository['findByStudentProfile']>>>();
-    for (const profile of studentProfiles) {
+    for (const profile of profilesToUse) {
       const careerSubjects = await this.careerSubjectRepository.findByCareer(
         profile.career.id,
       );
@@ -201,6 +217,8 @@ export class AcademicHistoryService {
         reason: d.reason,
       })),
       unparsedLines,
+      detectedCareerName,
+      detectedCareerId: detectedProfile?.career.id,
     });
   }
 
