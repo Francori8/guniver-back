@@ -40,4 +40,32 @@ export class StudentProgressController {
       req.user.userId,
     );
   }
+
+  @ApiEndpoint({
+    summary: 'Árbol de correlativas proyectado al próximo cuatrimestre',
+    description:
+      'Igual al árbol con progreso, pero simulando que todo lo que hoy está "cursada" o "pendiente de aprobación" ya se aprobó — sirve para planificar qué se habilitaría el próximo cuatri sin esperar a que cierren las notas. El campo "status" de cada materia sigue mostrando el estado real, no el simulado.',
+    secured: true,
+    params: [
+      { name: 'careerId', description: 'ID de la carrera', required: true },
+    ],
+    responses: [
+      {
+        status: 200,
+        description: 'Árbol proyectado',
+        type: CareerTreeWithProgressResponseDto,
+      },
+      { status: 404, description: 'No tenés perfil de estudiante en esa carrera' },
+    ],
+  })
+  @Get(':careerId/tree/next-term-plan')
+  async getNextTermPlan(
+    @Param('careerId') careerId: string,
+    @Request() req,
+  ): Promise<CareerTreeWithProgressResponseDto> {
+    return this.studentProgressEvaluationService.getNextTermPlan(
+      +careerId,
+      req.user.userId,
+    );
+  }
 }

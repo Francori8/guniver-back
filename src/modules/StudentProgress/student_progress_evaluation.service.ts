@@ -128,10 +128,18 @@ export class StudentProgressEvaluationService {
     );
   }
 
-  async getTreeWithProgress(
+  /**
+   * Arma el estado "vigente" por careerSubject y los acumulados de créditos/
+   * conteo por módulo — compartido entre el árbol de progreso real y la
+   * simulación de "próximo cuatri" (simulateApproved trata cursada/pendiente_
+   * aprobacion como si ya estuvieran aprobadas, para proyectar qué se habilita
+   * si el cuatri actual sale bien).
+   */
+  private async buildEvaluationState(
     careerId: number,
     userId: number,
-  ): Promise<CareerTreeWithProgressResponseDto> {
+    simulateApproved: boolean,
+  ) {
     const studentProfile = await this.studentProfileRepository.findByUserAndCareer(
       userId,
       careerId,
@@ -166,6 +174,17 @@ export class StudentProgressEvaluationService {
       }
     }
 
+    if (simulateApproved) {
+      for (const [csId, status] of currentStatus) {
+        if (
+          status === SubjectProgressStatus.CURSADA ||
+          status === SubjectProgressStatus.PENDIENTE_APROBACION
+        ) {
+          currentStatus.set(csId, SubjectProgressStatus.APROBADA);
+        }
+      }
+    }
+
     const approvedCreditsByModule = new Map<number, number>();
     const approvedCountByModule = new Map<number, number>();
     const totalObligatoryByModule = new Map<number, number>();
@@ -192,6 +211,31 @@ export class StudentProgressEvaluationService {
       }
     }
 
+    return {
+      tree,
+      allGroups,
+      currentStatus,
+      currentProgressByCareerSubject,
+      approvedCreditsByModule,
+      approvedCountByModule,
+      totalObligatoryByModule,
+    };
+  }
+
+  async getTreeWithProgress(
+    careerId: number,
+    userId: number,
+  ): Promise<CareerTreeWithProgressResponseDto> {
+    const {
+      tree,
+      allGroups,
+      currentStatus,
+      currentProgressByCareerSubject,
+      approvedCreditsByModule,
+      approvedCountByModule,
+      totalObligatoryByModule,
+    } = await this.buildEvaluationState(careerId, userId, false);
+
     const subjects = tree.subjects.map((subject) => {
       const status =
         currentStatus.get(subject.id) ?? SubjectProgressStatus.SIN_CURSAR;
@@ -216,6 +260,66 @@ export class StudentProgressEvaluationService {
             subject.id,
             RequirementKind.APROBAR,
             currentStatus,
+            approvedCreditsByModule,
+            approvedCountByModule,
+            totalObligatoryByModule,
+          ),
+        },
+      };
+    });
+
+    return new CareerTreeWithProgressResponseDto({
+      career: tree.career,
+      modules: tree.modules,
+      subjects,
+    });
+  }
+
+  /**
+   * Simula "¿qué se habilita para cursar si apruebo todo lo que hoy está
+   * cursada/pendiente de aprobación?" — sirve para planificar el próximo
+   * cuatrimestre sin esperar a que cierren las notas. Devuelve el árbol
+   * completo (mismo shape que getTreeWithProgress) pero evaluado con ese
+   * estado hipotético; en `progress.status` se ve el estado REAL actual
+   * (no el simulado) para no confundir "aprobada de verdad" con "asumida".
+   */
+  async getNextTermPlan(
+    careerId: number,
+    userId: number,
+  ): Promise<CareerTreeWithProgressResponseDto> {
+    const {
+      tree,
+      allGroups,
+      currentStatus: simulatedStatus,
+      currentProgressByCareerSubject,
+      approvedCreditsByModule,
+      approvedCountByModule,
+      totalObligatoryByModule,
+    } = await this.buildEvaluationState(careerId, userId, true);
+
+    const subjects = tree.subjects.map((subject) => {
+      const realProgress = currentProgressByCareerSubject.get(subject.id);
+      const realStatus = realProgress?.status ?? SubjectProgressStatus.SIN_CURSAR;
+
+      return {
+        ...subject,
+        progress: {
+          status: realStatus,
+          isException: realProgress?.isException,
+          enabledToCursar: this.evaluateKind(
+            allGroups,
+            subject.id,
+            RequirementKind.CURSAR,
+            simulatedStatus,
+            approvedCreditsByModule,
+            approvedCountByModule,
+            totalObligatoryByModule,
+          ),
+          enabledToAprobar: this.evaluateKind(
+            allGroups,
+            subject.id,
+            RequirementKind.APROBAR,
+            simulatedStatus,
             approvedCreditsByModule,
             approvedCountByModule,
             totalObligatoryByModule,
