@@ -31,6 +31,7 @@ import { AcademicHistoryModule } from './modules/AcademicHistory/academic_histor
 import { StudyPlanImportModule } from './modules/StudyPlanImport/study_plan_import.module';
 import { RequirementImportModule } from './modules/RequirementImport/requirement_import.module';
 import { ScheduledSubjectModule } from './modules/ScheduledSubject/scheduled_subject.module';
+import { CourseOfferingModule } from './modules/CourseOffering/course_offering.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { ScheduledSubjectModule } from './modules/ScheduledSubject/scheduled_sub
     StudyPlanImportModule,
     RequirementImportModule,
     ScheduledSubjectModule,
+    CourseOfferingModule,
   ],
   providers: [
     {
