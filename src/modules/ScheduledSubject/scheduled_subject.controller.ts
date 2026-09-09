@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   Request,
 } from '@nestjs/common';
 import { ScheduledSubjectService } from './scheduled_subject.service';
@@ -14,6 +15,44 @@ import { ApiEndpoint } from 'src/shared/Decorators/api_endpoitn_documentation';
 import { CreateScheduledSubjectDto } from './dto/create_scheduled_subject.dto';
 import { UpdateScheduledSubjectDto } from './dto/update_scheduled_subject.dto';
 import { ScheduledSubjectResponseDto } from './dto/scheduled_subject.response.dto';
+
+@ApiAuth()
+@Controller('scheduled-subjects')
+export class ScheduledSubjectQueryController {
+  constructor(private readonly scheduledSubjectService: ScheduledSubjectService) {}
+
+  @ApiEndpoint({
+    summary: 'Combinar los horarios de varios cuatrimestres propios (ej. carreras en paralelo)',
+    queries: [
+      {
+        name: 'termIds',
+        description: 'IDs de cuatrimestre separados por coma',
+        required: true,
+      },
+    ],
+    secured: true,
+    responses: [
+      {
+        status: 200,
+        description: 'Horarios combinados',
+        type: ScheduledSubjectResponseDto,
+        isArray: true,
+      },
+      { status: 403, description: 'Alguno de los cuatrimestres no te pertenece' },
+    ],
+  })
+  @Get()
+  async findByTerms(
+    @Query('termIds') termIds: string,
+    @Request() req,
+  ): Promise<ScheduledSubjectResponseDto[]> {
+    const ids = (termIds || '')
+      .split(',')
+      .map((id) => +id)
+      .filter((id) => !Number.isNaN(id));
+    return this.scheduledSubjectService.findByTerms(ids, req.user.userId);
+  }
+}
 
 @ApiAuth()
 @Controller('terms/:termId/scheduled-subjects')

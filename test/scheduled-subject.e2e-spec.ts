@@ -14,6 +14,7 @@ import {
   seedCareer,
   seedCareerSubject,
   seedStudentProfile,
+  findUserByEmail,
 } from './utils/e2e-setup';
 
 describe('ScheduledSubject (e2e)', () => {
@@ -200,5 +201,59 @@ describe('ScheduledSubject (e2e)', () => {
     expect(
       remaining.body.find((s: any) => s.careerSubjectId === careerSubjectA.id),
     ).toBeUndefined();
+  });
+
+  describe('GET /scheduled-subjects?termIds= (combined)', () => {
+    let secondCareer: Career;
+    let secondCareerSubject: CareerSubject;
+    let secondTermId: number;
+
+    beforeAll(async () => {
+      secondCareer = await seedCareer(app, { name: 'Licenciatura en Sistemas', university });
+      secondCareerSubject = await seedCareerSubject(app, {
+        name: 'Álgebra',
+        career: secondCareer,
+      });
+      await seedStudentProfile(app, {
+        user: (await findUserByEmail(app, 'student@guniver.test'))!,
+        university,
+        career: secondCareer,
+      });
+
+      const term = await request(app.getHttpServer())
+        .post('/terms')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ careerId: secondCareer.id, year: 2026, period: 'second' })
+        .expect(201);
+      secondTermId = term.body.id;
+
+      await request(app.getHttpServer())
+        .post(`/terms/${secondTermId}/scheduled-subjects`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({
+          careerSubjectId: secondCareerSubject.id,
+          slots: [{ dayOfWeek: 5, startTime: '10:00', endTime: '12:00' }],
+        })
+        .expect(201);
+    });
+
+    it('combines scheduled subjects from multiple owned terms', async () => {
+      const response = await request(app.getHttpServer())
+        .get(`/scheduled-subjects?termIds=${termId},${secondTermId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      const termIdsInResponse = response.body.map((s: any) => s.termId);
+      expect(termIdsInResponse).toEqual(
+        expect.arrayContaining([termId, secondTermId]),
+      );
+    });
+
+    it('rejects if any of the requested terms does not belong to the requester', async () => {
+      await request(app.getHttpServer())
+        .get(`/scheduled-subjects?termIds=${termId},${secondTermId}`)
+        .set('Authorization', `Bearer ${otherStudentToken}`)
+        .expect(403);
+    });
   });
 });
