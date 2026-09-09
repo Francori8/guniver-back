@@ -30,6 +30,7 @@ import { StudentProgressModule } from './modules/StudentProgress/student_progres
 import { AcademicHistoryModule } from './modules/AcademicHistory/academic_history.module';
 import { StudyPlanImportModule } from './modules/StudyPlanImport/study_plan_import.module';
 import { RequirementImportModule } from './modules/RequirementImport/requirement_import.module';
+import { ScheduledSubjectModule } from './modules/ScheduledSubject/scheduled_subject.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { RequirementImportModule } from './modules/RequirementImport/requirement
     AcademicHistoryModule,
     StudyPlanImportModule,
     RequirementImportModule,
+    ScheduledSubjectModule,
   ],
   providers: [
     {

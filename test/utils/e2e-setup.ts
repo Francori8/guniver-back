@@ -118,6 +118,26 @@ export async function seedSubject(
   return subject;
 }
 
+export async function seedCareerSubject(
+  app: INestApplication,
+  params: { name: string; career: Career },
+): Promise<CareerSubject> {
+  const em = forkEm(app);
+  const subject = em.create(Subject, {
+    name: params.name,
+    credits: 0,
+    hoursPerWeek: 0,
+  } as any);
+  const career = await em.findOneOrFail(Career, { id: params.career.id });
+  const careerSubject = em.create(CareerSubject, {
+    career,
+    subject,
+    credits: 0,
+  } as any);
+  await em.persistAndFlush([subject, careerSubject]);
+  return careerSubject;
+}
+
 export async function seedStudentProfile(
   app: INestApplication,
   params: { user: User; university: University; career: Career; enrollmentDate?: Date },

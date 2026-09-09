@@ -540,6 +540,15 @@
           "default": "0",
           "mappedType": "integer"
         },
+        "year": {
+          "name": "year",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "integer"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamptz",
@@ -1790,6 +1799,228 @@
             "id"
           ],
           "referencedTableName": "public.career_subject",
+          "createForeignKeyConstraint": true,
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "term_id": {
+          "name": "term_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "career_subject_id": {
+          "name": "career_subject_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "'tentativo'",
+          "enumItems": [
+            "tentativo",
+            "confirmado"
+          ],
+          "mappedType": "enum"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 6,
+          "mappedType": "datetime"
+        }
+      },
+      "name": "scheduled_subject",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "scheduled_subject_term_id_career_subject_id_unique",
+          "columnNames": [
+            "term_id",
+            "career_subject_id"
+          ],
+          "composite": true,
+          "constraint": true,
+          "primary": false,
+          "unique": true
+        },
+        {
+          "keyName": "scheduled_subject_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "scheduled_subject_term_id_foreign": {
+          "constraintName": "scheduled_subject_term_id_foreign",
+          "columnNames": [
+            "term_id"
+          ],
+          "localTableName": "public.scheduled_subject",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.term",
+          "createForeignKeyConstraint": true,
+          "updateRule": "cascade"
+        },
+        "scheduled_subject_career_subject_id_foreign": {
+          "constraintName": "scheduled_subject_career_subject_id_foreign",
+          "columnNames": [
+            "career_subject_id"
+          ],
+          "localTableName": "public.scheduled_subject",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.career_subject",
+          "createForeignKeyConstraint": true,
+          "updateRule": "cascade"
+        }
+      },
+      "nativeEnums": {}
+    },
+    {
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "unsigned": false,
+          "autoincrement": true,
+          "primary": true,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "scheduled_subject_id": {
+          "name": "scheduled_subject_id",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "integer"
+        },
+        "day_of_week": {
+          "name": "day_of_week",
+          "type": "smallint",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "mappedType": "enum"
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "location": {
+          "name": "location",
+          "type": "varchar(255)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "length": 255,
+          "mappedType": "string"
+        },
+        "is_exception": {
+          "name": "is_exception",
+          "type": "boolean",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "default": "false",
+          "mappedType": "boolean"
+        }
+      },
+      "name": "schedule_slot",
+      "schema": "public",
+      "indexes": [
+        {
+          "keyName": "schedule_slot_pkey",
+          "columnNames": [
+            "id"
+          ],
+          "composite": false,
+          "constraint": true,
+          "primary": true,
+          "unique": true
+        }
+      ],
+      "checks": [],
+      "foreignKeys": {
+        "schedule_slot_scheduled_subject_id_foreign": {
+          "constraintName": "schedule_slot_scheduled_subject_id_foreign",
+          "columnNames": [
+            "scheduled_subject_id"
+          ],
+          "localTableName": "public.schedule_slot",
+          "referencedColumnNames": [
+            "id"
+          ],
+          "referencedTableName": "public.scheduled_subject",
           "createForeignKeyConstraint": true,
           "updateRule": "cascade"
         }
