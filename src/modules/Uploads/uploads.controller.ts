@@ -25,6 +25,8 @@ const STUDENT_ALLOWED_EXTENSIONS = [
   '.jpg',
   '.jpeg',
   '.png',
+  '.md',
+  '.txt',
 ];
 
 @ApiAuth()
