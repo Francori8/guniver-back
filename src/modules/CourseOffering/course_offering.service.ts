@@ -6,7 +6,7 @@ import { CareerRepository } from '../Career/career.repository';
 import { CourseOffering } from './course_offering.entity';
 import { CourseOfferingSlot } from './course_offering_slot.entity';
 import { TermPeriod } from '../Term/term.entity';
-import { parseCourseOfferingText } from './course_offering.parser';
+import { parseCourseOfferingText, findBestFuzzyMatch } from './course_offering.parser';
 import { matchExistingSubject, MatchableSubject } from '../StudyPlanImport/study_plan_import.parser';
 import {
   PreviewCourseOfferingResponseDto,
@@ -53,6 +53,36 @@ export class CourseOfferingService {
       const match = matchExistingSubject('', c.subjectName, candidates);
       const matched = candidates.find((cand) => cand.subjectId === match.subjectId);
 
+      if (match.matchMethod !== 'none') {
+        return new PreviewCommissionDto({
+          subjectName: c.subjectName,
+          commission: c.commission,
+          modality: c.modality,
+          slots: c.slots.map(
+            (s) =>
+              new PreviewSlotDto({
+                dayOfWeek: s.dayOfWeek,
+                startTime: s.startTime,
+                endTime: s.endTime,
+                isVirtual: s.isVirtual,
+              }),
+          ),
+          unparsedScheduleText: c.unparsedScheduleText,
+          matchedCareerSubjectId: match.subjectId,
+          matchedSubjectName: matched?.name,
+          matchMethod: 'name',
+        });
+      }
+
+      // Sin match exacto: se sugiere el nombre más parecido del catálogo (ej.
+      // "Bases de Datos" del PDF vs "Base de Datos" cargada) para que el admin
+      // solo tenga que confirmar en vez de buscarla a mano en el selector — pero
+      // nunca se aplica sin que quede visible como sugerencia editable.
+      const fuzzy = findBestFuzzyMatch(
+        c.subjectName,
+        candidates.map((cand) => ({ id: cand.subjectId, name: cand.name })),
+      );
+
       return new PreviewCommissionDto({
         subjectName: c.subjectName,
         commission: c.commission,
@@ -67,9 +97,9 @@ export class CourseOfferingService {
             }),
         ),
         unparsedScheduleText: c.unparsedScheduleText,
-        matchedCareerSubjectId: match.subjectId,
-        matchedSubjectName: matched?.name,
-        matchMethod: match.matchMethod === 'code' ? 'name' : match.matchMethod,
+        matchedCareerSubjectId: fuzzy.id,
+        matchedSubjectName: fuzzy.name,
+        matchMethod: fuzzy.id ? 'fuzzy' : 'none',
       });
     });
 
@@ -86,6 +116,13 @@ export class CourseOfferingService {
     let created = 0;
     let skipped = 0;
     const errors: string[] = [];
+
+    // Reemplaza todo el catálogo existente de esta carrera/year/period antes de
+    // insertar el nuevo — evita duplicados si se reimporta (ej. PDF "definitivo"
+    // después del "tentativo"), a costa de que un ScheduledSubject de un
+    // estudiante que ya eligió una comisión que cambió/desapareció en la nueva
+    // versión no se actualiza solo (queda con el horario viejo que eligió).
+    await this.courseOfferingRepository.deleteByCareer(dto.careerId, dto.year, dto.period);
 
     for (const commission of dto.commissions) {
       if (commission.excluded) {

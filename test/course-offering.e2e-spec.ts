@@ -70,6 +70,7 @@ describe('CourseOffering (e2e)', () => {
       .post('/course-offerings/confirm')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({
+        careerId: career.id,
         year: 2026,
         period: 'second',
         commissions: [
@@ -102,7 +103,7 @@ describe('CourseOffering (e2e)', () => {
     await request(app.getHttpServer())
       .post('/course-offerings/confirm')
       .set('Authorization', `Bearer ${studentToken}`)
-      .send({ year: 2026, period: 'second', commissions: [] })
+      .send({ careerId: career.id, year: 2026, period: 'second', commissions: [] })
       .expect(403);
   });
 
@@ -117,6 +118,35 @@ describe('CourseOffering (e2e)', () => {
     expect(response.body[0].commission).toBe('1035-3-G14');
     expect(response.body[0].subjectName).toBe('Bases de Datos');
     expect(response.body[0].slots).toHaveLength(2);
+  });
+
+  it('POST /course-offerings/confirm replaces the existing catalog for that career/year/period', async () => {
+    await request(app.getHttpServer())
+      .post('/course-offerings/confirm')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        careerId: career.id,
+        year: 2026,
+        period: 'second',
+        commissions: [
+          {
+            careerSubjectId: careerSubject.id,
+            commission: '1035-3-G14-DEFINITIVO',
+            modality: 'Presencial',
+            slots: [{ dayOfWeek: 4, startTime: '10:00', endTime: '12:59' }],
+          },
+        ],
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .get('/course-offerings')
+      .query({ careerId: career.id, year: 2026, period: 'second' })
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(200);
+
+    expect(response.body).toHaveLength(1);
+    expect(response.body[0].commission).toBe('1035-3-G14-DEFINITIVO');
   });
 
   it('POST /course-offerings/preview is forbidden for non-admin', async () => {

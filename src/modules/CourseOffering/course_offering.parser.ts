@@ -80,6 +80,11 @@ const METADATA_LINE_REGEX = new RegExp(
     '^[ÚU]LTIMA ACTUALIZACI[ÓO]N',
     '^Bernal$',
     '^Seg[uú]n oferta de',
+    // Pie de página con el detalle de "Propuestas" (nombres de carrera), ej.
+    // "Tecnicatura Universitaria en Programación Informática" / "Licenciatura en
+    // Informática" — aparece suelto al final de la página, después de la tabla.
+    '^Tecnicatura\\b',
+    '^Licenciatura\\b',
     '^--\\s*\\d+\\s+of\\s+\\d+\\s*--$',
     '^Actividad\\s+Comisi[oó]n\\s+Banda Horaria',
     '^\\*.*simultaneidad de$', // nota al pie de "Seminarios..."
@@ -133,7 +138,10 @@ export function parseCourseOfferingText(text: string): {
   type Anchor = { lineIndex: number; endLineIndex: number; commission: string; modality: string };
   const anchors: Anchor[] = [];
   const FULL_ANCHOR_LINE = /^(.+?)\s*\(([^)]+)\)\*?$/;
-  const CODE_ONLY_LINE = /^\(([^)]+)\)$/;
+  // Código de comisión solo en su línea, con o sin paréntesis — el PDF usa ambos
+  // formatos (ej. "(90000-C-18-G14)" con paréntesis vs "90028-C-1-G14" sin ellos
+  // para Inglés II), seguido de "(modalidad)" en la línea siguiente.
+  const CODE_ONLY_LINE = /^\(?([^()]+?)\)?$/;
   const MODALITY_ONLY_LINE = /^\(([^)]+)\)\*?$/;
 
   const isSlotLike = (s: string) => {
@@ -143,10 +151,30 @@ export function parseCourseOfferingText(text: string): {
     return result;
   };
 
+  // Un fragmento de horario partido a mitad de franja entre dos líneas del PDF
+  // (ej. "Mie 09:00 a" en una línea, "11:59 (Virtual)" en la siguiente) deja un
+  // resto tipo "11:59 (Virtual)" que matchea el patrón "(código) (modalidad)" de
+  // una ancla nueva si no se filtra explícitamente — nunca es un código de
+  // comisión real, así que se rechaza cualquier "comisión" que sea solo una hora
+  // suelta (con o sin minutos de rango "a").
+  const LOOKS_LIKE_TIME_FRAGMENT = /^\d{1,2}:\d{2}(\s*a\s*\d{1,2}:\d{2})?$/;
+
+  // La modalidad real siempre menciona Presencial o Virtual — evita que un
+  // paréntesis decorativo que es parte del NOMBRE de la materia (ej. "Inglés II
+  // ( P-W )", donde "P-W" no es una modalidad) se confunda con el patrón de
+  // ancla "comisión (modalidad)".
+  const LOOKS_LIKE_REAL_MODALITY = /presencial|virtual/i;
+
   for (let idx = 0; idx < cellLines.length; idx++) {
     const cellLine = cellLines[idx];
     const m = cellLine.match(FULL_ANCHOR_LINE);
-    if (m && !isSlotLike(m[1]) && !/^\d{1,2}:\d{2}/.test(m[2])) {
+    if (
+      m &&
+      !isSlotLike(m[1]) &&
+      !LOOKS_LIKE_TIME_FRAGMENT.test(m[1].trim()) &&
+      !/^\d{1,2}:\d{2}/.test(m[2]) &&
+      LOOKS_LIKE_REAL_MODALITY.test(m[2])
+    ) {
       anchors.push({
         lineIndex: idx,
         endLineIndex: idx,
@@ -159,7 +187,12 @@ export function parseCourseOfferingText(text: string): {
     // Caso "(código)" solo en su línea, seguido de "(modalidad) ..." en la
     // siguiente — típico de "Inglés I (90000-C-18-G14)" / "(Virtual Asincrónica)".
     const codeOnly = cellLine.match(CODE_ONLY_LINE);
-    if (codeOnly && !isSlotLike(codeOnly[1]) && idx + 1 < cellLines.length) {
+    if (
+      codeOnly &&
+      !isSlotLike(codeOnly[1]) &&
+      !LOOKS_LIKE_TIME_FRAGMENT.test(codeOnly[1].trim()) &&
+      idx + 1 < cellLines.length
+    ) {
       const nextLine = cellLines[idx + 1];
       const modalityMatch = nextLine.match(MODALITY_ONLY_LINE);
       if (modalityMatch) {
@@ -266,4 +299,113 @@ export function parseCourseOfferingText(text: string): {
   const unrecognizedLines = cellLines.filter((_, idx) => !consumedLineIndexes.has(idx));
 
   return { commissions, unrecognizedLines };
+}
+
+// Números romanos I..X al final de palabra -> arábigo, para que "Matemática II"
+// y "Matemática 2" normalicen igual. Sin esto, Levenshtein por caracteres ve
+// "Matemática II" y "Matemática III" como casi idénticas (una sola letra de
+// diferencia) y las confunde, cuando en realidad son materias distintas.
+const ROMAN_NUMERAL_MAP: Record<string, string> = {
+  i: '1',
+  ii: '2',
+  iii: '3',
+  iv: '4',
+  v: '5',
+  vi: '6',
+  vii: '7',
+  viii: '8',
+  ix: '9',
+  x: '10',
+};
+
+function normalizeSubjectName(name: string): string {
+  const base = name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return base.replace(/\b(x|ix|viii|vii|vi|v|iv|iii|ii|i)\b$/i, (m) => ROMAN_NUMERAL_MAP[m.toLowerCase()]);
+}
+
+/**
+ * Distancia de Levenshtein clásica (ediciones de un carácter: insertar/borrar/
+ * sustituir) entre dos strings ya normalizados.
+ */
+function levenshteinDistance(a: string, b: string): number {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dist: number[][] = Array.from({ length: rows }, () => new Array(cols).fill(0));
+
+  for (let i = 0; i < rows; i++) dist[i][0] = i;
+  for (let j = 0; j < cols; j++) dist[0][j] = j;
+
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dist[i][j] = Math.min(
+        dist[i - 1][j] + 1, // borrado
+        dist[i][j - 1] + 1, // inserción
+        dist[i - 1][j - 1] + cost, // sustitución
+      );
+    }
+  }
+
+  return dist[rows - 1][cols - 1];
+}
+
+export interface FuzzyMatchCandidate {
+  id: number;
+  name: string;
+}
+
+export interface FuzzyMatchResult {
+  id?: number;
+  name?: string;
+  similarity: number; // 0..1, 1 = idéntico tras normalizar
+}
+
+const FUZZY_MATCH_THRESHOLD = 0.75;
+
+/**
+ * Busca, entre los candidatos, el nombre más parecido al del PDF por distancia de
+ * edición normalizada (ej. "Bases de Datos" vs "Base de Datos" del catálogo, o
+ * pequeñas variantes de tipeo/plural). Solo se usa como sugerencia en el preview
+ * cuando el matching exacto por nombre no encontró nada — nunca se aplica solo,
+ * el admin siempre confirma o corrige antes de importar.
+ */
+// Un subjectName "basura" (fragmento de horario que quedó mal separado por el
+// parser, ej. "20:59 (Virtual)") nunca debería sugerir una materia — evita
+// falsos positivos ruidosos en el preview cuando la fila ya está rota de por sí.
+const LOOKS_LIKE_SCHEDULE_FRAGMENT = /^\d{1,2}:\d{2}|\(virtual\)/i;
+
+export function findBestFuzzyMatch(
+  name: string,
+  candidates: FuzzyMatchCandidate[],
+): FuzzyMatchResult {
+  if (name.trim().length < 4 || LOOKS_LIKE_SCHEDULE_FRAGMENT.test(name.trim())) {
+    return { similarity: 0 };
+  }
+
+  const target = normalizeSubjectName(name);
+  let best: FuzzyMatchResult = { similarity: 0 };
+
+  for (const candidate of candidates) {
+    const candidateName = normalizeSubjectName(candidate.name);
+    const maxLen = Math.max(target.length, candidateName.length);
+    if (maxLen === 0) continue;
+
+    const distance = levenshteinDistance(target, candidateName);
+    const similarity = 1 - distance / maxLen;
+
+    if (similarity > best.similarity) {
+      best = { id: candidate.id, name: candidate.name, similarity };
+    }
+  }
+
+  if (best.similarity < FUZZY_MATCH_THRESHOLD) {
+    return { similarity: best.similarity };
+  }
+  return best;
 }

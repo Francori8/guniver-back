@@ -17,7 +17,7 @@ export class PreviewCommissionDto {
   unparsedScheduleText?: string;
   matchedCareerSubjectId?: number;
   matchedSubjectName?: string;
-  matchMethod: 'name' | 'none';
+  matchMethod: 'name' | 'fuzzy' | 'none';
 
   constructor(partial: Partial<PreviewCommissionDto>) {
     Object.assign(this, partial);

@@ -31,4 +31,24 @@ export class CourseOfferingRepository extends BaseRepository<CourseOffering> {
       { populate: ['careerSubject', 'careerSubject.subject', 'slots'] },
     );
   }
+
+  /**
+   * Borra todo el catálogo de comisiones de una carrera para un year/period dado.
+   * Se usa al confirmar un reimport (ej. PDF "definitivo" después del
+   * "tentativo") para que el catálogo siempre refleje el último PDF subido, sin
+   * ir acumulando comisiones duplicadas de imports anteriores.
+   */
+  async deleteByCareer(
+    careerId: number,
+    year: number,
+    period: TermPeriod,
+  ): Promise<void> {
+    const existing = await this.find(
+      { careerSubject: { career: careerId }, year, period },
+      { populate: ['slots'] },
+    );
+    for (const offering of existing) {
+      await this.removeAndFlush(offering);
+    }
+  }
 }

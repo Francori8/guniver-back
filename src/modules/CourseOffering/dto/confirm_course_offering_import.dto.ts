@@ -48,6 +48,9 @@ export class ConfirmCommissionDto {
 
 export class ConfirmCourseOfferingImportDto {
   @IsNumber()
+  careerId: number;
+
+  @IsNumber()
   year: number;
 
   @IsEnum(TermPeriod)
